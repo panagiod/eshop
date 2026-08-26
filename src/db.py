@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import logging
 import os
 import secrets
 import sqlite3
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Generator
+
+logger = logging.getLogger(__name__)
 
 # Default path works locally; Render sets DATA_DIR for a writable volume mount.
 def data_dir() -> Path:
@@ -16,6 +19,24 @@ def data_dir() -> Path:
 
 def db_path() -> Path:
     return data_dir() / "eshop.db"
+
+
+def data_is_persistent() -> bool:
+    """False when DATA_DIR is under /tmp (local default and Render Free)."""
+    return not str(data_dir().resolve()).startswith("/tmp")
+
+
+def warn_if_ephemeral_production() -> None:
+    """Log when Render is still writing orders to a wipeable folder."""
+    if not os.environ.get("RENDER"):
+        return
+    if data_is_persistent():
+        return
+    logger.warning(
+        "DATA_DIR is %s — orders and photos will vanish on sleep or redeploy. "
+        "Upgrade to Starter, mount a disk at /var/data, set DATA_DIR=/var/data.",
+        data_dir(),
+    )
 
 
 def ensure_data_dir() -> None:

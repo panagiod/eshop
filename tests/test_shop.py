@@ -27,6 +27,7 @@ def test_health_and_catalog() -> None:
     payload = response.json()
     assert payload["status"] == "ok"
     assert payload["mail"] is False
+    assert payload["persistent"] is False
 
     home = client.get("/")
     assert home.status_code == 200
