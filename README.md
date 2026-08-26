@@ -51,19 +51,65 @@ On Render, `SESSION_SECRET` and `ADMIN_PASSWORD` are required (the service will 
 
 ## Order emails
 
-New checkouts and security alerts email **dimitrioupanagiotis@outlook.com**. FormSubmit cannot send from Render (Cloudflare blocks it), so the shop uses [Resend](https://resend.com) instead.
+New checkouts and security alerts go to **dimitrioupanagiotis@outlook.com**. Checkout still succeeds if mail fails. FormSubmit cannot send from Render (Cloudflare blocks it), so the shop uses [Resend](https://resend.com).
 
-1. Sign up at **https://resend.com** with your Outlook address (free)
-2. **API Keys** → **Create API Key** → copy it
-3. Open **https://dashboard.render.com** (the shop host — not resend.com) → `print-me-maybe` → **Environment** → add `RESEND_API_KEY` → **Save**
-4. **Manual Deploy** of the live service
-5. Open **https://resend.com/domains** → **Add Domain** (a domain you own, not Outlook)
-6. Add the DNS records Resend shows, wait until the domain is **Verified**
-7. Render → Environment → set `RESEND_FROM` to `Print Me Maybe <orders@your-domain>` → **Save** → **Manual Deploy**
+**Current status:** `RESEND_API_KEY` is on Render and the shop can reach Resend. Order **#2** was posted to Resend and **rejected (HTTP 403)** with “domain not verified”. Outlook stays empty until a domain you own is verified and `RESEND_FROM` is set. Do this after you buy a domain — not before.
 
-Resend stores the key in your mail account. The live shop only reads keys from Render. After a domain is verified and `RESEND_FROM` is set, `/health` still shows `"mail": true` (that flag means a key is present, not that Resend accepted the From address). `beth.t@example.com` is blocked on this account, and `@outlook.com` cannot be used as From.
+### Two different sites (easy to mix up)
 
-Blocked studio logins and checkout floods also email you, at most once per hour per type. Checkout still succeeds if mail fails.
+| Site | URL | What it is |
+|------|-----|------------|
+| **Render** | https://dashboard.render.com | Hosts the live shop |
+| **Resend** | https://resend.com | Sends the emails |
+
+The website customers open is **https://print-me-maybe.onrender.com**. That is not an email domain.
+
+### What you cannot add in Resend → Domains
+
+These names are not yours. Verification will fail:
+
+- `print-me-maybe.onrender.com` — Render’s web address for the shop (keep using it in the browser)
+- `onrender.com` — belongs to Render
+- `outlook.com` — belongs to Microsoft (your inbox can still *receive* there)
+- `resend.dev` / `example.com` / `beth.t@example.com` — Resend’s shared test sender; this account blocks it (403)
+- `@print.me.maybe` — Instagram, not a domain
+
+A domain is a name you **buy**, such as `printmemaybe.com`. Mail then sends as `orders@printmemaybe.com` and can still land in Outlook.
+
+### Already done
+
+1. Resend account: **dimitrioupanagiotis** (signed up in line with the Outlook address)
+2. Resend API key created (starts with `re_`)
+3. That key saved on Render → **print-me-maybe** → **Environment** as `RESEND_API_KEY` (never paste the key into git or chat)
+4. Shop can call `POST https://api.resend.com/emails` (see Resend → **Logs**, not **Emails → Receiving**)
+
+**Emails → Receiving** is the wrong tab (inbound `@….resend.app` addresses). Use **Emails → Sending** and **Logs**. A row there with status **403** is a refused send, not a delivered message.
+
+### When you have bought a domain
+
+Replace `printmemaybe.com` below with the name you actually bought.
+
+1. Buy a domain (Cloudflare, Namecheap, Google, or similar). `.com` or `.cy` is fine.
+2. Open **https://resend.com/domains** → **Add Domain** → enter `printmemaybe.com` (no `https://`, no `www` unless Resend asks for that exact name).
+3. Copy every DNS record Resend shows (TXT / MX) into the domain’s DNS at the registrar. Save. Do not skip rows.
+4. Wait until Resend shows **Verified** (often minutes; can take longer). Do not continue while it is Pending.
+5. Open **https://dashboard.render.com** → service **print-me-maybe** → **Environment**.
+6. Add or edit:
+
+   | Key | Value |
+   |-----|--------|
+   | `RESEND_FROM` | `Print Me Maybe <orders@printmemaybe.com>` |
+
+   Use your real domain. The part before `@` can be `orders`, `studio`, or `hello`. It does not need a real mailbox at that address.
+7. Confirm `NOTIFY_EMAIL` is `dimitrioupanagiotis@outlook.com` (where you want to *read* mail).
+8. **Save** environment changes, then **Manual Deploy**. New env vars are unused until a new deploy.
+9. After deploy, open studio **https://print-me-maybe.onrender.com/admin/orders** → **Send test email**.
+10. Resend → **Emails → Sending** (and **Logs**): look for **Delivered**, not 403. If 403, the From domain still does not match the verified name.
+11. Outlook: search **Inbox, Junk, Other, Focused** for `Print Me Maybe` or `orders@printmemaybe.com`. Mark Not junk the first time.
+
+Optional later: point the **website** at the same domain (Render → Settings → **Custom Domains**). That is separate from mail. Mail only needs Resend domain verification + `RESEND_FROM`.
+
+Blocked studio logins and checkout floods also email you, at most once per hour per type.
 
 ## Environment variables
 
@@ -77,7 +123,7 @@ Blocked studio logins and checkout floods also email you, at most once per hour 
 | `SHOP_URL` | `https://print-me-maybe.onrender.com` | Links in order emails |
 | `NOTIFY_EMAIL` | `dimitrioupanagiotis@outlook.com` | Inbox for new-order and attack alerts |
 | `RESEND_API_KEY` | empty (mail skipped) | Resend API key so Render can send mail |
-| `RESEND_FROM` | `Print Me Maybe <beth.t@example.com>` | Must use a domain verified at resend.com/domains |
+| `RESEND_FROM` | `Print Me Maybe <beth.t@example.com>` | After a domain is Verified at resend.com/domains: `Print Me Maybe <orders@your-domain>`. Not onrender.com / outlook.com |
 | `ATTACK_ALERT_COOLDOWN` | `3600` | Seconds between similar security emails |
 | `DATA_DIR` | `/tmp/eshop-data` | SQLite directory |
 

@@ -26,7 +26,9 @@ services:
       # Free Resend API key — add in Render → Environment (never commit it).
       - key: RESEND_API_KEY
         sync: false
-      # After resend.com/domains is Verified: Print Me Maybe <orders@your-domain>
+      # After you buy a domain and resend.com/domains says Verified.
+      # Do not use print-me-maybe.onrender.com, outlook.com, or onboarding@resend.dev.
+      # Example: Print Me Maybe <orders@printmemaybe.com>
       - key: RESEND_FROM
         sync: false
       # Free instances have no persistent disk — SQLite lives in /tmp (resets on redeploy).

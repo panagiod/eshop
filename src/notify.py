@@ -93,10 +93,10 @@ def mail_domain_unverified_message() -> str:
     """Resend 403: From domain is not verified. Outlook.com cannot be used as From."""
     return (
         "Resend blocked the send: the From domain is not verified. "
-        "beth.t@example.com does not work on this account, and you cannot "
-        "send as @outlook.com. Add a domain you own at https://resend.com/domains, "
-        "wait until it says Verified, then on Render set RESEND_FROM to "
-        'Print Me Maybe <orders@your-domain> and Manual Deploy.'
+        "You cannot use print-me-maybe.onrender.com, outlook.com, or "
+        "beth.t@example.com. Buy a domain, add it at https://resend.com/domains, "
+        "wait until Verified, then on Render set RESEND_FROM to "
+        'Print Me Maybe <orders@your-domain> and Manual Deploy. See README “Order emails”.'
     )
 
 
