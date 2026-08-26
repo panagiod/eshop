@@ -32,6 +32,10 @@ def test_health_and_catalog() -> None:
     assert "LaserCraft 27" in home.text
     assert "print.me.maybe" in home.text
     assert "lasercraft.27" in home.text
+    assert "Made in Cyprus" in home.text
+    assert "Floral Glasses Case" in home.text
+    assert "€4.00" in home.text
+    assert "/static/images/products/glasses-case.jpg" in home.text
 
     api = client.get("/api/products")
     assert api.status_code == 200
@@ -49,19 +53,19 @@ def test_category_filter() -> None:
     client = TestClient(app)
     prints = client.get("/?category=3D Prints")
     assert prints.status_code == 200
-    assert "Spherical Apple Watch Dock" in prints.text
+    assert "Floral Glasses Case" in prints.text
     assert "Engraved Oak Coaster Set" not in prints.text
 
     laser = client.get("/?category=Laser Engraving")
     assert laser.status_code == 200
     assert "Engraved Oak Coaster Set" in laser.text
-    assert "Spherical Apple Watch Dock" not in laser.text
+    assert "Floral Glasses Case" not in laser.text
 
 
 def test_shipping_calculation() -> None:
-    assert shipping_cents(2499) == STANDARD_SHIPPING_CENTS
-    assert shipping_cents(7500) == 0
-    assert order_total_cents(2499) == 2499 + STANDARD_SHIPPING_CENTS
+    assert shipping_cents(400) == STANDARD_SHIPPING_CENTS
+    assert shipping_cents(2500) == 0
+    assert order_total_cents(400) == 400 + STANDARD_SHIPPING_CENTS
 
 
 def test_add_to_cart_and_checkout_with_shipping() -> None:
@@ -70,22 +74,22 @@ def test_add_to_cart_and_checkout_with_shipping() -> None:
 
     client = TestClient(app)
     products = client.get("/api/products").json()
-    nozzle = next(p for p in products if p["slug"] == "nozzle-case-a1")
-    subtotal = nozzle["price_cents"]
+    glasses = next(p for p in products if p["slug"] == "glasses-case")
+    subtotal = glasses["price_cents"]
     shipping = shipping_cents(subtotal)
     total = order_total_cents(subtotal)
 
     add = client.post(
         "/cart/add",
-        data={"product_id": nozzle["id"], "quantity": 1},
+        data={"product_id": glasses["id"], "quantity": 1},
         follow_redirects=False,
     )
     assert add.status_code == 303
 
     cart = client.get("/cart")
     assert cart.status_code == 200
-    assert nozzle["name"] in cart.text
-    assert "Free shipping on orders over $75" in cart.text
+    assert glasses["name"] in cart.text
+    assert "Free shipping on orders over €25.00" in cart.text
 
     checkout = client.post(
         "/checkout",
@@ -97,13 +101,13 @@ def test_add_to_cart_and_checkout_with_shipping() -> None:
     )
     assert checkout.status_code == 200
     assert "Thank you" in checkout.text
-    assert f"${total / 100:.2f}" in checkout.text
+    assert f"€{total / 100:.2f}" in checkout.text
 
     order_id = checkout.text.split("#")[1].split("<")[0]
     detail = client.get(f"/order/{order_id}")
     assert detail.status_code == 200
-    assert nozzle["name"] in detail.text
-    assert f"${shipping / 100:.2f}" in detail.text or "Free" in detail.text
+    assert glasses["name"] in detail.text
+    assert f"€{shipping / 100:.2f}" in detail.text or "Free" in detail.text
 
 
 def test_free_shipping_on_large_order() -> None:
@@ -119,7 +123,7 @@ def test_free_shipping_on_large_order() -> None:
     cart = client.get("/cart")
     assert cart.status_code == 200
     assert "Free" in cart.text
-    assert "Free shipping on orders over $75" not in cart.text
+    assert "Free shipping on orders over €25.00" not in cart.text
 
 
 def test_admin_requires_login() -> None:
@@ -138,8 +142,8 @@ def test_admin_orders_and_stock() -> None:
 
     client = TestClient(app)
     products = client.get("/api/products").json()
-    nozzle = next(p for p in products if p["slug"] == "nozzle-case-a1")
-    client.post("/cart/add", data={"product_id": nozzle["id"], "quantity": 1})
+    glasses = next(p for p in products if p["slug"] == "glasses-case")
+    client.post("/cart/add", data={"product_id": glasses["id"], "quantity": 1})
     checkout = client.post(
         "/checkout",
         data={
@@ -176,11 +180,11 @@ def test_admin_orders_and_stock() -> None:
 
     stock_page = client.get("/admin/stock")
     assert stock_page.status_code == 200
-    assert nozzle["name"] in stock_page.text
+    assert glasses["name"] in stock_page.text
 
-    client.post(f"/admin/stock/{nozzle['id']}", data={"stock": "0"})
+    client.post(f"/admin/stock/{glasses['id']}", data={"stock": "0"})
     hidden = client.get("/api/products").json()
-    assert all(p["id"] != nozzle["id"] for p in hidden)
+    assert all(p["id"] != glasses["id"] for p in hidden)
 
 
 def test_cancel_restocks_and_reopen_deducts() -> None:
@@ -189,10 +193,10 @@ def test_cancel_restocks_and_reopen_deducts() -> None:
 
     client = TestClient(app)
     products = client.get("/api/products").json()
-    nozzle = next(p for p in products if p["slug"] == "nozzle-case-a1")
-    before = next(p for p in list_all_products() if p.slug == "nozzle-case-a1").stock
+    glasses = next(p for p in products if p["slug"] == "glasses-case")
+    before = next(p for p in list_all_products() if p.slug == "glasses-case").stock
 
-    client.post("/cart/add", data={"product_id": nozzle["id"], "quantity": 1})
+    client.post("/cart/add", data={"product_id": glasses["id"], "quantity": 1})
     checkout = client.post(
         "/checkout",
         data={
@@ -202,7 +206,7 @@ def test_cancel_restocks_and_reopen_deducts() -> None:
         },
     )
     order_id = checkout.text.split("#")[1].split("<")[0]
-    after_order = next(p for p in list_all_products() if p.slug == "nozzle-case-a1").stock
+    after_order = next(p for p in list_all_products() if p.slug == "glasses-case").stock
     assert after_order == before - 1
 
     client.post("/admin/login", data={"password": "printmemaybe"})
@@ -210,12 +214,12 @@ def test_cancel_restocks_and_reopen_deducts() -> None:
         f"/admin/orders/{order_id}",
         data={"status": "cancelled", "notes": ""},
     )
-    after_cancel = next(p for p in list_all_products() if p.slug == "nozzle-case-a1").stock
+    after_cancel = next(p for p in list_all_products() if p.slug == "glasses-case").stock
     assert after_cancel == before
 
     client.post(
         f"/admin/orders/{order_id}",
         data={"status": "in_progress", "notes": ""},
     )
-    after_reopen = next(p for p in list_all_products() if p.slug == "nozzle-case-a1").stock
+    after_reopen = next(p for p in list_all_products() if p.slug == "glasses-case").stock
     assert after_reopen == before - 1

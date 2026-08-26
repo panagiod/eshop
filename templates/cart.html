@@ -66,7 +66,7 @@
     </div>
   </dl>
   {% if shipping_cents > 0 %}
-  <p class="shipping-hint">Free shipping on orders over $75.</p>
+  <p class="shipping-hint">Free shipping on orders over {{ free_shipping_threshold }}.</p>
   {% endif %}
   <a href="/checkout" class="btn btn-primary btn-lg">Proceed to checkout</a>
 </div>

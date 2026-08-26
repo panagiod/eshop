@@ -27,12 +27,11 @@ Open http://localhost:8080
 
 ## Catalog
 
-| Line | Instagram | What you get |
-|------|-----------|----------------|
-| 3D Prints | [@print.me.maybe](https://www.instagram.com/print.me.maybe/) | Everyday functional prints (docks, stands, organizers) |
-| Laser Engraving | [@lasercraft.27](https://www.instagram.com/lasercraft.27/) | Coasters, plaques, boards, leather, slate |
+Listings for **3D prints** come from public [@print.me.maybe](https://www.instagram.com/print.me.maybe/) posts (names, euro prices, and photos). **Laser engraving** is custom work from [@lasercraft.27](https://www.instagram.com/lasercraft.27/) — that profile is login-walled, so those SKUs use branded placeholders until studio photos are added.
 
-Shipping is $5.99 under $75, free at $75+. Custom names/photos: DM after checkout.
+Prices are in **EUR**. Shipping is €3.50 under €25, free at €25+. Custom names, colours, and files: order notes or Instagram DM.
+
+The catalog is re-seeded when product slugs change (this wipes local/demo orders).
 
 ## Studio admin
 

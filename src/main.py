@@ -15,7 +15,7 @@ from starlette.middleware.sessions import SessionMiddleware
 
 from src.admin import router as admin_router
 from src.db import init_schema
-from src.models import format_money, order_total_cents, shipping_cents
+from src.models import FREE_SHIPPING_THRESHOLD_CENTS, format_money, order_total_cents, shipping_cents
 from src.seed import seed_products
 from src.store import (
     build_cart_lines,
@@ -45,6 +45,7 @@ app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
 
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 templates.env.globals["format_money"] = format_money
+templates.env.globals["free_shipping_threshold"] = format_money(FREE_SHIPPING_THRESHOLD_CENTS)
 app.include_router(admin_router)
 
 

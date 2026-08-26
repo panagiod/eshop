@@ -12,7 +12,12 @@ from fastapi import APIRouter, Form, HTTPException, Request
 from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
 
-from src.models import ORDER_STATUS_LABELS, ORDER_STATUSES, format_money
+from src.models import (
+    FREE_SHIPPING_THRESHOLD_CENTS,
+    ORDER_STATUS_LABELS,
+    ORDER_STATUSES,
+    format_money,
+)
 from src.store import (
     get_order,
     list_all_products,
@@ -27,6 +32,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 router = APIRouter(prefix="/admin")
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 templates.env.globals["format_money"] = format_money
+templates.env.globals["free_shipping_threshold"] = format_money(FREE_SHIPPING_THRESHOLD_CENTS)
 
 
 def shop_name() -> str:

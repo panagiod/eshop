@@ -15,13 +15,13 @@ ORDER_STATUS_LABELS = {
     "cancelled": "Cancelled",
 }
 
-FREE_SHIPPING_THRESHOLD_CENTS = 7500
-STANDARD_SHIPPING_CENTS = 599
+FREE_SHIPPING_THRESHOLD_CENTS = 2500
+STANDARD_SHIPPING_CENTS = 350
 
 
 def format_money(cents: int) -> str:
-    """Render integer cents as a USD string for templates."""
-    return f"${cents / 100:.2f}"
+    """Render integer cents as a euro string for templates."""
+    return f"€{cents / 100:.2f}"
 
 
 def shipping_cents(subtotal_cents: int) -> int:
