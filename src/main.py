@@ -14,7 +14,7 @@ from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
 
 from src.admin import router as admin_router
-from src.db import init_schema, product_images_dir
+from src.db import data_is_persistent, init_schema, product_images_dir, warn_if_ephemeral_production
 from src.models import FREE_SHIPPING_THRESHOLD_CENTS, format_money, order_total_cents, shipping_cents
 from src.ratelimit import RateLimitMiddleware
 from src.security import SecurityHeadersMiddleware, require_production_secrets, session_https_only, session_secret
@@ -40,6 +40,7 @@ SECRET_KEY = session_secret()
 async def lifespan(_app: FastAPI):
     """Prepare database and demo catalog on container boot."""
     require_production_secrets()
+    warn_if_ephemeral_production()
     init_schema()
     seed_products()
     yield
@@ -91,7 +92,7 @@ def checkout_totals(lines: list) -> dict[str, int]:
 @app.get("/health")
 def health() -> dict[str, str | bool]:
     """Liveness plus whether THIS process can send mail (no secrets)."""
-    return {"status": "ok", "service": "eshop", "mail": mail_configured()}
+    return {"status": "ok", "service": "eshop", "mail": mail_configured(), "persistent": data_is_persistent()}
 
 
 @app.get("/media/products/{filename}")

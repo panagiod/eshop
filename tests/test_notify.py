@@ -229,9 +229,12 @@ def test_health_reports_mail_flag(monkeypatch) -> None:
 
     client = TestClient(app)
     assert client.get("/health").json()["mail"] is False
+    assert client.get("/health").json()["persistent"] is False
     monkeypatch.setenv("RESEND_API_KEY", "re_test_key")
     monkeypatch.setenv("NOTIFY_EMAIL", "dimitrioupanagiotis@outlook.com")
     assert client.get("/health").json()["mail"] is True
+    monkeypatch.setenv("DATA_DIR", "/var/data")
+    assert client.get("/health").json()["persistent"] is True
 
 
 def test_send_test_email_explains_missing_key(monkeypatch) -> None:

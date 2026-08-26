@@ -2,7 +2,7 @@
 
 Small e-shop for **3D prints** ([@print.me.maybe](https://www.instagram.com/print.me.maybe/)) and **laser engraving** ([@lasercraft.27](https://www.instagram.com/lasercraft.27/)). Made in Cyprus. Prices in **EUR**.
 
-This repository is a FastAPI + SQLite storefront with a session cart, demo checkout (no card payments), and a password-protected studio for orders and stock. It is meant to run on [Render](https://render.com) Free.
+This repository is a FastAPI + SQLite storefront with a session cart, demo checkout (no card payments), and a password-protected studio for orders and stock. Production is meant to run on [Render](https://render.com) **Starter** with a persistent disk (~$7.25/month) so orders survive redeploys.
 
 **Live shop:** [https://print-me-maybe.onrender.com](https://print-me-maybe.onrender.com)
 
@@ -31,7 +31,7 @@ This repository is a FastAPI + SQLite storefront with a session cart, demo check
 | This project **does** | This project **does not** |
 |-----------------------|---------------------------|
 | Show a catalog, cart, and checkout form | Charge cards or talk to Revolut/Stripe |
-| Save orders in SQLite and email the studio (once mail is configured) | Keep data across Render sleep/redeploy (Free plan `/tmp`) |
+| Save orders in SQLite and email the studio (once mail is configured) | Keep data on Render **Free** (`/tmp` is wiped) |
 | Let the studio update order status, notes, stock, and add products | Use `print-me-maybe.onrender.com` as an email-sending domain |
 | Rate-limit login/checkout and send security alerts | Collect payment at checkout |
 
@@ -103,18 +103,18 @@ GitHub Actions (`.github/workflows/ci.yml`) runs on every pull request and on pu
 
 ## Production (Render)
 
-Blueprint: `render.yaml`. Service name **print-me-maybe**, Python, **Free**, region **Frankfurt**.
+Blueprint: `render.yaml`. Service name **print-me-maybe**, Python, **Starter**, region **Frankfurt**, **1 GB disk** at `/var/data` (~$7.25/month).
+
+The **live** service is still on Free until you upgrade it in the dashboard (a git push does not attach a disk by itself).
 
 1. GitHub: [panagiod/eshop](https://github.com/panagiod/eshop)
-2. [Render](https://dashboard.render.com) → New → Blueprint, or the Deploy button above
-3. Keep the **Free** plan (no credit card)
-4. After the first deploy: **https://print-me-maybe.onrender.com**
+2. [dashboard.render.com](https://dashboard.render.com) → **print-me-maybe**
+3. Follow [Keeping data](#keeping-data-persistence) (Starter + disk + `DATA_DIR=/var/data`)
+4. Shop URL: **https://print-me-maybe.onrender.com**
 
 Render generates `SESSION_SECRET` and `ADMIN_PASSWORD`. Copy the admin password from the service **Environment** tab. The service **will not boot** on Render without those two values.
 
-**Manual Deploy** is required after you change environment variables (including `RESEND_API_KEY` and `RESEND_FROM`). Pushing to `main` does not always auto-deploy on Free.
-
-Free instances **sleep** after about 15 minutes idle (~1 minute to wake). `/health` is the health check path.
+**Manual Deploy** after environment or disk changes. `/health` should show `"persistent": true` once `DATA_DIR` is not `/tmp`.
 
 Two dashboards that are easy to mix up:
 
@@ -140,11 +140,11 @@ Set these on Render → **print-me-maybe** → **Environment**. Never commit sec
 | `RESEND_API_KEY` | empty (mail skipped) | Resend API key (`re_…`) |
 | `RESEND_FROM` | `Print Me Maybe <beth.t@example.com>` | Must be an address on a **verified** Resend domain — not onrender.com / outlook.com |
 | `ATTACK_ALERT_COOLDOWN` | `3600` | Seconds between similar security emails |
-| `DATA_DIR` | `/tmp/eshop-data` | SQLite + uploaded photos |
+| `DATA_DIR` | `/tmp/eshop-data` locally; `/var/data` on Render with a disk | SQLite + uploaded photos |
 | `NOTIFY_SYNC` | unset | Set to `1` in tests so checkout waits for mail |
 | `RATE_LIMIT_DISABLED` | unset | Set to `1` to turn limits off (tests) |
 
-`GET /health` includes `"mail": true` when `NOTIFY_EMAIL` and (`RESEND_API_KEY` or `SMTP_PASSWORD`) are set. That does **not** mean Resend accepted the From domain.
+`GET /health` includes `"mail": true|false` and `"persistent": true|false`. `mail` means a key is present, not that Resend accepted the From domain. `persistent` is true when `DATA_DIR` is not under `/tmp`.
 
 ## Shop behaviour
 
@@ -237,30 +237,29 @@ Rate limits (in-memory, per instance, by IP):
 
 ## Data on Render Free
 
-There is **no persistent disk** on Free. `DATA_DIR=/tmp/eshop-data` is wiped when the instance sleeps or redeploys: orders, stock, and uploaded photos reset to the seed catalog.
-
-That is expected on $0 hosting. The shop still works; it just forgets.
+There is **no persistent disk** on Free. `DATA_DIR=/tmp/eshop-data` is wiped when the instance sleeps or redeploys. Do not keep the live shop on Free if you need orders.
 
 ## Keeping data (persistence)
 
-The app already stores everything in one folder: SQLite (`eshop.db`) and studio photos (`product-images/`). Persistence means that folder must sit on a disk Render does **not** wipe.
-
-**Do this (smallest change, no rewrite):**
+**Do this on the live service now** (about **$7.25/month**). Order matters: attach the disk **before** pointing `DATA_DIR` at `/var/data`.
 
 1. Open [dashboard.render.com](https://dashboard.render.com) → **print-me-maybe**.
-2. Change the instance from **Free** to **Starter** (paid; disks are not allowed on Free). Starter also stays awake (no 15‑minute sleep).
-3. **Disks** → add a disk:
+2. Instance type: **Free → Starter** (requires a card). Starter stays awake.
+3. **Disks** → Add disk:
    - Name: `eshop-data`
-   - Mount path: `/var/data` (not `/tmp`)
-   - Size: **1 GB** is enough
-4. **Environment** → set `DATA_DIR` to `/var/data` (replace `/tmp/eshop-data`).
-5. **Save** → deploy. Confirm `/health` still returns ok, then place a test order and add a product photo. Redeploy once: the order and photo should still be there.
+   - Mount path: **`/var/data`** (not `/tmp`)
+   - Size: **1 GB**
+4. Wait until the disk deploy finishes.
+5. **Environment** → set `DATA_DIR` to `/var/data` (replace `/tmp/eshop-data`).
+6. **Save** → **Manual Deploy**.
+7. Open `https://print-me-maybe.onrender.com/health` — you want `"persistent": true`.
+8. Place a test order (and optionally upload a product photo). **Manual Deploy** once more. The order and photo must still be there.
 
-Do **not** point `DATA_DIR` at `/tmp`. Do **not** try to persist on Free — Render will still erase it.
+Do **not** use `/tmp`. Do **not** skip the disk and only change `DATA_DIR` — `/var/data` without a mount is still wiped.
 
-**Skip for now:** moving to Postgres or S3. That is a larger rewrite. A disk keeps the current SQLite shop. Free Render Postgres also expires after 30 days, so it is a poor fit.
+`render.yaml` already describes Starter + this disk for new deploys. The existing Free service must be upgraded in the dashboard.
 
-After a disk is attached, take occasional downloads of `/var/data/eshop.db` (Render shell on paid plans, or copy from studio) so a disk failure is not the only copy of orders.
+After the disk is on, download `/var/data/eshop.db` occasionally (Render shell on Starter) so a disk failure is not the only copy of orders.
 
 ## License
 
