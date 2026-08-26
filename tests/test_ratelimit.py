@@ -30,6 +30,7 @@ def test_admin_login_blocks_after_too_many_tries(monkeypatch) -> None:
     monkeypatch.setenv("RATE_LIMIT_LOGIN", "3")
     monkeypatch.setenv("RATE_LIMIT_LOGIN_WINDOW", "900")
     monkeypatch.setenv("ATTACK_ALERT_COOLDOWN", "3600")
+    monkeypatch.setenv("RESEND_API_KEY", "re_test_key")
     alerts: list[str] = []
     monkeypatch.setattr("src.notify._deliver_studio", lambda **kw: alerts.append(kw["subject"]))
     init_schema()
@@ -53,6 +54,7 @@ def test_checkout_blocks_repeat_orders(monkeypatch) -> None:
     monkeypatch.setenv("RATE_LIMIT_CHECKOUT", "2")
     monkeypatch.setenv("RATE_LIMIT_CHECKOUT_WINDOW", "3600")
     monkeypatch.setenv("ATTACK_ALERT_COOLDOWN", "3600")
+    monkeypatch.setenv("RESEND_API_KEY", "re_test_key")
     alerts: list[str] = []
     monkeypatch.setattr("src.notify._deliver_studio", lambda **kw: alerts.append(kw["subject"]))
     init_schema()

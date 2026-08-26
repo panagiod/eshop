@@ -36,22 +36,25 @@ def _sample_order() -> Order:
     )
 
 
-def test_mail_skipped_without_inbox(monkeypatch) -> None:
-    monkeypatch.setenv("NOTIFY_EMAIL", "")
+def test_mail_skipped_without_transport(monkeypatch) -> None:
+    monkeypatch.setenv("NOTIFY_EMAIL", "dimitrioupanagiotis@outlook.com")
+    monkeypatch.delenv("RESEND_API_KEY", raising=False)
+    monkeypatch.delenv("SMTP_PASSWORD", raising=False)
     assert mail_configured() is False
     assert notify_new_order(_sample_order()) is False
 
 
-def test_notify_sends_without_smtp_password(monkeypatch) -> None:
+def test_notify_sends_via_resend(monkeypatch) -> None:
     monkeypatch.delenv("SMTP_PASSWORD", raising=False)
     monkeypatch.setenv("NOTIFY_EMAIL", "dimitrioupanagiotis@outlook.com")
-    captured: list[dict] = []
+    monkeypatch.setenv("RESEND_API_KEY", "re_test_key")
+    captured: list[tuple[str, dict]] = []
 
     class FakeResp:
         status = 200
 
         def read(self) -> bytes:
-            return b'{"success":"true"}'
+            return b'{"id":"email_1"}'
 
         def __enter__(self):
             return self
@@ -60,15 +63,19 @@ def test_notify_sends_without_smtp_password(monkeypatch) -> None:
             return False
 
     def fake_urlopen(req, timeout=None):
-        captured.append(json.loads(req.data.decode()))
+        captured.append((req.full_url, json.loads(req.data.decode())))
+        assert req.get_header("Authorization") == "Bearer re_test_key"
         return FakeResp()
 
     monkeypatch.setattr("src.notify.urllib.request.urlopen", fake_urlopen)
     assert mail_configured() is True
     assert notify_new_order(_sample_order()) is True
     assert len(captured) == 1
-    assert "Floral Glasses Case" in captured[0]["message"]
-    assert captured[0]["_replyto"] == "ada@example.com"
+    url, payload = captured[0]
+    assert url == "https://api.resend.com/emails"
+    assert payload["to"] == ["dimitrioupanagiotis@outlook.com"]
+    assert "Floral Glasses Case" in payload["text"]
+    assert payload["reply_to"] == "ada@example.com"
 
 
 def test_build_order_email_includes_customer_and_totals() -> None:
@@ -177,6 +184,7 @@ def test_checkout_emails_studio(monkeypatch) -> None:
 
 def test_attack_alert_cooldown(monkeypatch) -> None:
     monkeypatch.setenv("NOTIFY_EMAIL", "dimitrioupanagiotis@outlook.com")
+    monkeypatch.setenv("RESEND_API_KEY", "re_test_key")
     monkeypatch.setenv("ATTACK_ALERT_COOLDOWN", "3600")
     delivered: list[str] = []
 

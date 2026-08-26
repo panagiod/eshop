@@ -8,7 +8,7 @@ import os
 import smtplib
 import ssl
 import time
-import urllib.parse
+import urllib.error
 import urllib.request
 from email.message import EmailMessage
 from threading import Lock
@@ -20,7 +20,8 @@ logger = logging.getLogger(__name__)
 DEFAULT_NOTIFY_EMAIL = "dimitrioupanagiotis@outlook.com"
 DEFAULT_SMTP_HOST = "smtp-mail.outlook.com"
 DEFAULT_SHOP_URL = "https://print-me-maybe.onrender.com"
-FORMSUBMIT_URL = "https://formsubmit.co/ajax/"
+RESEND_API_URL = "https://api.resend.com/emails"
+DEFAULT_RESEND_FROM = "Print Me Maybe <beth.t@example.com>"
 
 _alert_last: dict[str, float] = {}
 _alert_lock = Lock()
@@ -51,6 +52,14 @@ def smtp_password() -> str:
     return os.environ.get("SMTP_PASSWORD", "").strip()
 
 
+def resend_api_key() -> str:
+    return os.environ.get("RESEND_API_KEY", "").strip()
+
+
+def resend_from() -> str:
+    return os.environ.get("RESEND_FROM", DEFAULT_RESEND_FROM).strip() or DEFAULT_RESEND_FROM
+
+
 def shop_url() -> str:
     return os.environ.get("SHOP_URL", DEFAULT_SHOP_URL).rstrip("/")
 
@@ -60,8 +69,8 @@ def shop_name() -> str:
 
 
 def mail_configured() -> bool:
-    """True when we have an inbox. No mail password is required."""
-    return bool(notify_email())
+    """True when we have an inbox and a working server mail transport."""
+    return bool(notify_email() and (resend_api_key() or smtp_password()))
 
 
 def reset_alerts() -> None:
@@ -183,32 +192,33 @@ def _send_via_smtp(msg: EmailMessage) -> None:
         smtp.send_message(msg)
 
 
-def _send_via_formsubmit(*, subject: str, body: str, reply_to: str = "", name: str = "") -> None:
+def _send_via_resend(*, subject: str, body: str, to: str, reply_to: str = "") -> None:
     payload = {
-        "_subject": subject,
-        "_template": "box",
-        "_captcha": "false",
-        "name": name or shop_name(),
-        "message": body,
+        "from": resend_from(),
+        "to": [to],
+        "subject": subject,
+        "text": body,
     }
     if reply_to:
-        payload["_replyto"] = reply_to
-        payload["email"] = reply_to
-    to = urllib.parse.quote(notify_email(), safe="")
+        payload["reply_to"] = reply_to
     req = urllib.request.Request(
-        f"{FORMSUBMIT_URL}{to}",
+        RESEND_API_URL,
         data=json.dumps(payload).encode("utf-8"),
         headers={
+            "Authorization": f"Bearer {resend_api_key()}",
             "Content-Type": "application/json",
-            "Accept": "application/json",
             "User-Agent": "PrintMeMaybeShop/1.0",
         },
         method="POST",
     )
-    with urllib.request.urlopen(req, timeout=15) as resp:
-        raw = resp.read()
-        if resp.status >= 400:
-            raise RuntimeError(f"FormSubmit HTTP {resp.status}: {raw[:200]!r}")
+    try:
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            raw = resp.read()
+            if resp.status >= 400:
+                raise RuntimeError(f"Resend HTTP {resp.status}: {raw[:300]!r}")
+    except urllib.error.HTTPError as exc:
+        detail = exc.read()[:300]
+        raise RuntimeError(f"Resend HTTP {exc.code}: {detail!r}") from exc
 
 
 def _deliver_studio(*, subject: str, body: str, reply_to: str = "", name: str = "") -> None:
@@ -222,13 +232,18 @@ def _deliver_studio(*, subject: str, body: str, reply_to: str = "", name: str = 
         msg.set_content(body)
         _send_via_smtp(msg)
         return
-    _send_via_formsubmit(subject=subject, body=body, reply_to=reply_to, name=name)
+    if not resend_api_key():
+        raise RuntimeError("Set RESEND_API_KEY on Render to send mail")
+    _send_via_resend(subject=subject, body=body, to=notify_email(), reply_to=reply_to)
 
 
 def notify_new_order(order: Order) -> bool:
     """Email the studio. Never raises — checkout must still succeed."""
     if not mail_configured():
-        logger.warning("Order #%s placed; email skipped (NOTIFY_EMAIL is empty).", order.id)
+        logger.warning(
+            "Order #%s placed; email skipped (set RESEND_API_KEY on Render).",
+            order.id,
+        )
         return False
     try:
         _deliver_studio(

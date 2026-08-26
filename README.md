@@ -51,11 +51,16 @@ On Render, `SESSION_SECRET` and `ADMIN_PASSWORD` are required (the service will 
 
 ## Order emails
 
-New checkouts email **dimitrioupanagiotis@outlook.com**. No mail password is required. The first live message is a FormSubmit **confirm this email** link — click it once. After that, orders and security alerts arrive in Outlook.
+New checkouts and security alerts email **dimitrioupanagiotis@outlook.com**. FormSubmit cannot send from Render (Cloudflare blocks it), so the shop uses [Resend](https://resend.com) instead.
 
-Blocked studio logins and checkout floods also email you, at most once per hour per type, so a scan cannot fill the inbox. If that was you typing the password wrong, wait a few minutes and try again.
+1. Sign up at **https://resend.com** with your Outlook address (free)
+2. **API Keys** → **Create API Key** → copy it
+3. Render → `print-me-maybe` → **Environment** → add `RESEND_API_KEY` → **Save**
+4. **Manual Deploy**
 
-Checkout still succeeds if mail fails.
+The first send uses Resend’s `beth.t@example.com` from-address to your Outlook inbox. That is not your Outlook password.
+
+Blocked studio logins and checkout floods also email you, at most once per hour per type. Checkout still succeeds if mail fails.
 
 ## Environment variables
 
@@ -68,7 +73,7 @@ Checkout still succeeds if mail fails.
 | `SHOP_NAME` | `Print Me Maybe` | Store branding |
 | `SHOP_URL` | `https://print-me-maybe.onrender.com` | Links in order emails |
 | `NOTIFY_EMAIL` | `dimitrioupanagiotis@outlook.com` | Inbox for new-order and attack alerts |
-| `SMTP_PASSWORD` | empty | Optional. If set, send via SMTP and email the customer too |
+| `RESEND_API_KEY` | empty (mail skipped) | Resend API key so Render can send mail |
 | `ATTACK_ALERT_COOLDOWN` | `3600` | Seconds between similar security emails |
 | `DATA_DIR` | `/tmp/eshop-data` | SQLite directory |
 
