@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
 
@@ -13,11 +14,12 @@ from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
 
 from src.db import init_schema
-from src.models import format_money
+from src.models import format_money, order_total_cents, shipping_cents
 from src.seed import seed_products
 from src.store import (
     build_cart_lines,
     cart_total_cents,
+    get_order,
     get_product_by_slug,
     list_categories,
     list_products,
@@ -27,19 +29,21 @@ from src.store import (
 BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.environ.get("SESSION_SECRET", "dev-only-change-me-in-production")
 
-app = FastAPI(title="Harbor E-Shop", version="0.1.0")
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    """Prepare database and demo catalog on container boot."""
+    init_schema()
+    seed_products()
+    yield
+
+
+app = FastAPI(title="Harbor E-Shop", version="0.1.0", lifespan=lifespan)
 app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY, max_age=60 * 60 * 24 * 7)
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
 
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 templates.env.globals["format_money"] = format_money
-
-
-@app.on_event("startup")
-def on_startup() -> None:
-    """Prepare database and demo catalog on container boot."""
-    init_schema()
-    seed_products()
 
 
 def get_cart(request: Request) -> dict[str, int]:
@@ -58,6 +62,21 @@ def cart_count(cart: dict[str, int]) -> int:
     return sum(cart.values())
 
 
+def shop_name() -> str:
+    return os.environ.get("SHOP_NAME", "Harbor")
+
+
+def checkout_totals(lines: list) -> dict[str, int]:
+    """Shared subtotal, shipping, and total for cart and checkout views."""
+    subtotal = cart_total_cents(lines)
+    shipping = shipping_cents(subtotal)
+    return {
+        "subtotal_cents": subtotal,
+        "shipping_cents": shipping,
+        "total_cents": order_total_cents(subtotal),
+    }
+
+
 @app.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok", "service": "eshop"}
@@ -74,7 +93,7 @@ def home(request: Request, category: str | None = None) -> Any:
             "categories": list_categories(),
             "active_category": category,
             "cart_count": cart_count(cart),
-            "shop_name": os.environ.get("SHOP_NAME", "Harbor"),
+            "shop_name": shop_name(),
         },
     )
 
@@ -92,7 +111,7 @@ def product_detail(request: Request, slug: str) -> Any:
         {
             "product": product,
             "cart_count": cart_count(cart),
-            "shop_name": os.environ.get("SHOP_NAME", "Harbor"),
+            "shop_name": shop_name(),
         },
     )
 
@@ -122,14 +141,15 @@ def cart_update(request: Request, product_id: int = Form(...), quantity: int = F
 def cart_page(request: Request) -> Any:
     cart = get_cart(request)
     lines = build_cart_lines(cart)
+    totals = checkout_totals(lines)
     return templates.TemplateResponse(
         request,
         "cart.html",
         {
             "lines": lines,
-            "total_cents": cart_total_cents(lines),
             "cart_count": cart_count(cart),
-            "shop_name": os.environ.get("SHOP_NAME", "Harbor"),
+            "shop_name": shop_name(),
+            **totals,
         },
     )
 
@@ -141,14 +161,15 @@ def checkout_page(request: Request) -> Any:
     if not lines:
         return RedirectResponse(url="/cart", status_code=303)
 
+    totals = checkout_totals(lines)
     return templates.TemplateResponse(
         request,
         "checkout.html",
         {
             "lines": lines,
-            "total_cents": cart_total_cents(lines),
             "cart_count": cart_count(cart),
-            "shop_name": os.environ.get("SHOP_NAME", "Harbor"),
+            "shop_name": shop_name(),
+            **totals,
         },
     )
 
@@ -165,6 +186,8 @@ def checkout_submit(
     if not lines:
         return RedirectResponse(url="/cart", status_code=303)
 
+    totals = checkout_totals(lines)
+
     try:
         order_id = place_order(
             customer_name=customer_name.strip(),
@@ -178,10 +201,10 @@ def checkout_submit(
             "checkout.html",
             {
                 "lines": lines,
-                "total_cents": cart_total_cents(lines),
                 "cart_count": cart_count(cart),
-                "shop_name": os.environ.get("SHOP_NAME", "Harbor"),
+                "shop_name": shop_name(),
                 "error": str(exc),
+                **totals,
             },
             status_code=400,
         )
@@ -192,9 +215,26 @@ def checkout_submit(
         "order_complete.html",
         {
             "order_id": order_id,
-            "total_cents": cart_total_cents(lines),
             "cart_count": 0,
-            "shop_name": os.environ.get("SHOP_NAME", "Harbor"),
+            "shop_name": shop_name(),
+            **totals,
+        },
+    )
+
+
+@app.get("/order/{order_id}", response_class=HTMLResponse)
+def order_detail(request: Request, order_id: int) -> Any:
+    order = get_order(order_id)
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+
+    return templates.TemplateResponse(
+        request,
+        "order_detail.html",
+        {
+            "order": order,
+            "cart_count": cart_count(get_cart(request)),
+            "shop_name": shop_name(),
         },
     )
 

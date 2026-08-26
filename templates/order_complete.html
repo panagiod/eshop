@@ -7,7 +7,30 @@
   <div class="success-icon" aria-hidden="true">✓</div>
   <h1 class="page-title">Thank you!</h1>
   <p class="success-text">Your order <strong>#{{ order_id }}</strong> has been placed.</p>
-  <p class="success-total">Total charged: <strong>{{ format_money(total_cents) }}</strong> (demo — no payment processed)</p>
-  <a href="/" class="btn btn-primary">Continue shopping</a>
+  <dl class="totals-breakdown success-totals">
+    <div class="totals-row">
+      <dt>Subtotal</dt>
+      <dd>{{ format_money(subtotal_cents) }}</dd>
+    </div>
+    <div class="totals-row">
+      <dt>Shipping</dt>
+      <dd>
+        {% if shipping_cents == 0 %}
+        <span class="free-badge">Free</span>
+        {% else %}
+        {{ format_money(shipping_cents) }}
+        {% endif %}
+      </dd>
+    </div>
+    <div class="totals-row totals-row-total">
+      <dt>Order total</dt>
+      <dd><strong>{{ format_money(total_cents) }}</strong></dd>
+    </div>
+  </dl>
+  <p class="checkout-note">Demo store — no payment was collected.</p>
+  <div class="success-actions">
+    <a href="/order/{{ order_id }}" class="btn btn-ghost">View order details</a>
+    <a href="/" class="btn btn-primary">Continue shopping</a>
+  </div>
 </section>
 {% endblock %}

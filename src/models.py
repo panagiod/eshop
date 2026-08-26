@@ -6,9 +6,25 @@ from dataclasses import dataclass
 from typing import Any
 
 
+FREE_SHIPPING_THRESHOLD_CENTS = 7500
+STANDARD_SHIPPING_CENTS = 599
+
+
 def format_money(cents: int) -> str:
     """Render integer cents as a USD string for templates."""
     return f"${cents / 100:.2f}"
+
+
+def shipping_cents(subtotal_cents: int) -> int:
+    """Standard shipping unless the cart subtotal qualifies for free shipping."""
+    if subtotal_cents >= FREE_SHIPPING_THRESHOLD_CENTS:
+        return 0
+    return STANDARD_SHIPPING_CENTS
+
+
+def order_total_cents(subtotal_cents: int) -> int:
+    """Subtotal plus shipping for checkout and order persistence."""
+    return subtotal_cents + shipping_cents(subtotal_cents)
 
 
 @dataclass(frozen=True)
@@ -56,3 +72,45 @@ class CartLine:
     @property
     def line_total_display(self) -> str:
         return format_money(self.line_total_cents)
+
+
+@dataclass(frozen=True)
+class OrderItem:
+    """One persisted line on a completed order."""
+
+    product_name: str
+    quantity: int
+    unit_price_cents: int
+
+    @property
+    def line_total_cents(self) -> int:
+        return self.unit_price_cents * self.quantity
+
+    @property
+    def line_total_display(self) -> str:
+        return format_money(self.line_total_cents)
+
+
+@dataclass(frozen=True)
+class Order:
+    """A placed order with line items for the confirmation page."""
+
+    id: int
+    customer_name: str
+    customer_email: str
+    shipping_address: str
+    total_cents: int
+    created_at: str
+    items: list[OrderItem]
+
+    @property
+    def subtotal_cents(self) -> int:
+        return sum(item.line_total_cents for item in self.items)
+
+    @property
+    def shipping_cents(self) -> int:
+        return max(0, self.total_cents - self.subtotal_cents)
+
+    @property
+    def total_display(self) -> str:
+        return format_money(self.total_cents)
