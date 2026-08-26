@@ -9,6 +9,7 @@ from src.db import init_schema
 from src.main import app
 from src.models import STANDARD_SHIPPING_CENTS, order_total_cents, shipping_cents
 from src.seed import seed_products
+from src.store import list_all_products
 
 
 @pytest.fixture(autouse=True)
@@ -180,3 +181,41 @@ def test_admin_orders_and_stock() -> None:
     client.post(f"/admin/stock/{nozzle['id']}", data={"stock": "0"})
     hidden = client.get("/api/products").json()
     assert all(p["id"] != nozzle["id"] for p in hidden)
+
+
+def test_cancel_restocks_and_reopen_deducts() -> None:
+    init_schema()
+    seed_products()
+
+    client = TestClient(app)
+    products = client.get("/api/products").json()
+    nozzle = next(p for p in products if p["slug"] == "nozzle-case-a1")
+    before = next(p for p in list_all_products() if p.slug == "nozzle-case-a1").stock
+
+    client.post("/cart/add", data={"product_id": nozzle["id"], "quantity": 1})
+    checkout = client.post(
+        "/checkout",
+        data={
+            "customer_name": "Cancel Case",
+            "customer_email": "cancel@example.com",
+            "shipping_address": "9 Restock Rd",
+        },
+    )
+    order_id = checkout.text.split("#")[1].split("<")[0]
+    after_order = next(p for p in list_all_products() if p.slug == "nozzle-case-a1").stock
+    assert after_order == before - 1
+
+    client.post("/admin/login", data={"password": "printmemaybe"})
+    client.post(
+        f"/admin/orders/{order_id}",
+        data={"status": "cancelled", "notes": ""},
+    )
+    after_cancel = next(p for p in list_all_products() if p.slug == "nozzle-case-a1").stock
+    assert after_cancel == before
+
+    client.post(
+        f"/admin/orders/{order_id}",
+        data={"status": "in_progress", "notes": ""},
+    )
+    after_reopen = next(p for p in list_all_products() if p.slug == "nozzle-case-a1").stock
+    assert after_reopen == before - 1

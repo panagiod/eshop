@@ -39,7 +39,7 @@ Shipping is $5.99 under $75, free at $75+. Custom names/photos: DM after checkou
 After login at `/admin`:
 
 - **Orders** — list by status (New → In progress → Ready to ship → Shipped)
-- **Order detail** — customer, items, studio notes (Instagram custom requests)
+- **Order detail** — customer, items, studio notes (Instagram custom requests). Cancelling restocks; reopening deducts stock again.
 - **Stock** — set remaining quantity; 0 hides the product from the shop
 
 Local password default: `printmemaybe`. On Render, copy `ADMIN_PASSWORD` from the service Environment tab (it is generated for you).

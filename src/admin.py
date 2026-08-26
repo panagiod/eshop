@@ -156,7 +156,16 @@ def order_update(
         raise HTTPException(status_code=400, detail="Invalid status")
     if not get_order(order_id):
         raise HTTPException(status_code=404, detail="Order not found")
-    update_order_status(order_id, status)
+    try:
+        update_order_status(order_id, status)
+    except ValueError as exc:
+        order = get_order(order_id)
+        return templates.TemplateResponse(
+            request,
+            "admin_order.html",
+            _ctx(request, {"order": order, "error": str(exc)}),
+            status_code=400,
+        )
     update_order_notes(order_id, notes.strip())
     return RedirectResponse(url=f"/admin/orders/{order_id}", status_code=303)
 
