@@ -1,0 +1,19 @@
+[Unit]
+Description=Print Me Maybe shop
+After=network.target
+
+[Service]
+Type=simple
+User=eshop
+Group=eshop
+WorkingDirectory=/opt/eshop
+Environment=PYTHONUNBUFFERED=1
+EnvironmentFile=/etc/eshop.env
+ExecStart=/opt/eshop/.venv/bin/uvicorn src.main:app --host 127.0.0.1 --port 8000
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

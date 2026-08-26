@@ -94,6 +94,7 @@ def test_build_order_email_includes_customer_and_totals() -> None:
     assert "€3.50" in body
     assert "€7.50" in body
     assert "/admin/orders/12" in body
+    assert "No payment was collected" in body
 
 
 def test_notify_sends_via_smtp(monkeypatch) -> None:
@@ -243,7 +244,7 @@ def test_send_test_email_explains_missing_key(monkeypatch) -> None:
     assert ok is False
     assert "RESEND_API_KEY" in message
     assert "resend.com" in message
-    assert "dashboard.render.com" in message
+    assert "/etc/eshop.env" in message
 
 
 def test_send_test_email_explains_own_inbox_rule(monkeypatch) -> None:

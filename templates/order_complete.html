@@ -27,7 +27,13 @@
       <dd><strong>{{ format_money(total_cents) }}</strong></dd>
     </div>
   </dl>
-  <p class="checkout-note">No payment was collected. Send custom names, photos, or print files via Instagram DM.</p>
+  <p class="checkout-note">
+    {% if paid %}
+    Payment received. Send custom names, photos, or print files via Instagram DM.
+    {% else %}
+    No payment was collected. Send custom names, photos, or print files via Instagram DM.
+    {% endif %}
+  </p>
   <div class="success-actions">
     <a href="/order/{{ lookup_token }}" class="btn btn-ghost">View order details</a>
     <a href="/" class="btn btn-primary">Continue shopping</a>

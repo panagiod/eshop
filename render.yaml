@@ -1,3 +1,5 @@
+# UNUSED on Hetzner. The live Render Free shop stays at https://github.com/panagiod/eshop
+# Do not connect this repo to Render — that would not keep the current setup.
 # Render Blueprint — $0/month web service (free instance).
 # Live hostname: https://print-me-maybe.onrender.com
 # One-click: https://render.com/deploy?repo=https://github.com/panagiod/eshop

@@ -770,6 +770,8 @@ img {
 .status-ready { background: #e8f5e9; color: #2e7d32; }
 .status-shipped { background: #e8eaf6; color: #3949ab; }
 .status-cancelled { background: #fdecea; color: #8a1f11; }
+.status-paid { background: #e6f6ed; color: #0d6b32; }
+.status-unpaid { background: #f4f1ea; color: #6b5e4e; }
 
 .empty-state {
   color: var(--muted);

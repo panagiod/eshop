@@ -1,0 +1,5 @@
+# Replace printmemaybe.com with the domain you bought (Cloudflare DNS A records → this server).
+# Caddy issues Let's Encrypt certificates automatically.
+printmemaybe.com, www.printmemaybe.com {
+	reverse_proxy 127.0.0.1:8000
+}

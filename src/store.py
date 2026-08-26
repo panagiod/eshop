@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import re
 import secrets
 import unicodedata
@@ -305,7 +306,31 @@ def _order_from_row(conn, row) -> Order:
         status=row["status"] if "status" in keys else "new",
         notes=row["notes"] if "notes" in keys else "",
         lookup_token=row["lookup_token"] if "lookup_token" in keys and row["lookup_token"] else "",
+        payment_status=row["payment_status"]
+        if "payment_status" in keys and row["payment_status"]
+        else "unpaid",
     )
+
+
+def cart_from_snapshot(raw: str) -> dict[str, int]:
+    """Rebuild a session cart dict from Stripe metadata JSON."""
+    try:
+        pairs = json.loads(raw or "[]")
+    except json.JSONDecodeError:
+        return {}
+    cart: dict[str, int] = {}
+    if not isinstance(pairs, list):
+        return {}
+    for item in pairs:
+        if not isinstance(item, list) or len(item) < 2:
+            continue
+        try:
+            pid, qty = int(item[0]), int(item[1])
+        except (TypeError, ValueError):
+            continue
+        if pid > 0 and qty > 0:
+            cart[str(pid)] = qty
+    return cart
 
 
 def place_order(
@@ -314,12 +339,14 @@ def place_order(
     customer_email: str,
     shipping_address: str,
     lines: list[CartLine],
+    paid: bool = False,
 ) -> int:
     """Persist an order and decrement stock atomically."""
     if not lines:
         raise ValueError("Cart is empty")
 
     total = order_total_cents(cart_total_cents(lines))
+    payment_status = "paid" if paid else "unpaid"
 
     with get_connection() as conn:
         conn.execute("BEGIN IMMEDIATE")
@@ -335,11 +362,12 @@ def place_order(
         cursor = conn.execute(
             """
             INSERT INTO orders (
-                customer_name, customer_email, shipping_address, total_cents, status, lookup_token
+                customer_name, customer_email, shipping_address, total_cents,
+                status, lookup_token, payment_status
             )
-            VALUES (?, ?, ?, ?, 'new', ?)
+            VALUES (?, ?, ?, ?, 'new', ?, ?)
             """,
-            (customer_name, customer_email, shipping_address, total, token),
+            (customer_name, customer_email, shipping_address, total, token, payment_status),
         )
         order_id = cursor.lastrowid
 
@@ -357,3 +385,24 @@ def place_order(
             )
 
     return int(order_id)
+
+
+def order_id_for_stripe_session(session_id: str) -> int | None:
+    """Idempotent lookup so a Stripe success refresh does not double-charge stock."""
+    cleaned = (session_id or "").strip()
+    if not cleaned:
+        return None
+    with get_connection() as conn:
+        row = conn.execute(
+            "SELECT order_id FROM stripe_sessions WHERE session_id = ?",
+            (cleaned,),
+        ).fetchone()
+    return int(row["order_id"]) if row else None
+
+
+def remember_stripe_session(session_id: str, order_id: int) -> None:
+    with get_connection() as conn:
+        conn.execute(
+            "INSERT OR IGNORE INTO stripe_sessions (session_id, order_id) VALUES (?, ?)",
+            (session_id, order_id),
+        )

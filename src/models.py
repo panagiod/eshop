@@ -114,6 +114,11 @@ class Order:
     status: str = "new"
     notes: str = ""
     lookup_token: str = ""
+    payment_status: str = "unpaid"
+
+    @property
+    def paid(self) -> bool:
+        return self.payment_status == "paid"
 
     @property
     def status_label(self) -> str:
