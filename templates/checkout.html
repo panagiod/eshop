@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+
+{% block title %}Checkout — {{ shop_name }}{% endblock %}
+
+{% block content %}
+<h1 class="page-title">Checkout</h1>
+
+{% if error %}
+<div class="alert alert-error" role="alert">{{ error }}</div>
+{% endif %}
+
+<div class="checkout-layout">
+  <form action="/checkout" method="post" class="checkout-form">
+    <fieldset>
+      <legend>Shipping details</legend>
+      <label>
+        Full name
+        <input type="text" name="customer_name" required autocomplete="name">
+      </label>
+      <label>
+        Email
+        <input type="email" name="customer_email" required autocomplete="email">
+      </label>
+      <label>
+        Address
+        <textarea name="shipping_address" rows="3" required autocomplete="street-address"></textarea>
+      </label>
+    </fieldset>
+    <p class="checkout-note">This is a demo store — no real payment is collected.</p>
+    <button type="submit" class="btn btn-primary btn-lg">Place order</button>
+  </form>
+
+  <aside class="order-summary">
+    <h2>Order summary</h2>
+    <ul class="summary-list">
+      {% for line in lines %}
+      <li>
+        <span>{{ line.product.name }} × {{ line.quantity }}</span>
+        <span>{{ line.line_total_display }}</span>
+      </li>
+      {% endfor %}
+    </ul>
+    <p class="summary-total">Total: <strong>{{ format_money(total_cents) }}</strong></p>
+  </aside>
+</div>
+{% endblock %}

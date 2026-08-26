@@ -1,0 +1,17 @@
+# Render Blueprint — deploy this repo for free at https://render.com
+# Connect your GitHub repo and Render reads this file automatically.
+services:
+  - type: web
+    name: harbor-eshop
+    runtime: docker
+    plan: free
+    region: frankfurt
+    healthCheckPath: /health
+    envVars:
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: SHOP_NAME
+        value: Harbor
+      # Free tier has no persistent disk — SQLite lives in /tmp (resets on redeploy).
+      - key: DATA_DIR
+        value: /tmp/eshop-data

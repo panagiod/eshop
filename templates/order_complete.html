@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+
+{% block title %}Order confirmed — {{ shop_name }}{% endblock %}
+
+{% block content %}
+<section class="success-panel">
+  <div class="success-icon" aria-hidden="true">✓</div>
+  <h1 class="page-title">Thank you!</h1>
+  <p class="success-text">Your order <strong>#{{ order_id }}</strong> has been placed.</p>
+  <p class="success-total">Total charged: <strong>{{ format_money(total_cents) }}</strong> (demo — no payment processed)</p>
+  <a href="/" class="btn btn-primary">Continue shopping</a>
+</section>
+{% endblock %}

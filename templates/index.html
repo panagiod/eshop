@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% block title %}{{ shop_name }} — Shop{% endblock %}
+
+{% block content %}
+<section class="hero">
+  <p class="hero-eyebrow">Curated essentials</p>
+  <h1 class="hero-title">Everything you need,<br>nothing you don't.</h1>
+  <p class="hero-subtitle">Quality goods at honest prices. Free shipping on orders over $75.</p>
+</section>
+
+{% if categories %}
+<nav class="category-bar" aria-label="Categories">
+  <a href="/" class="category-chip {% if not active_category %}active{% endif %}">All</a>
+  {% for cat in categories %}
+  <a href="/?category={{ cat | urlencode }}" class="category-chip {% if active_category == cat %}active{% endif %}">{{ cat }}</a>
+  {% endfor %}
+</nav>
+{% endif %}
+
+<section class="product-grid" aria-label="Products">
+  {% for product in products %}
+  <article class="product-card">
+    <a href="/product/{{ product.slug }}" class="product-image-link">
+      <img src="{{ product.image_url }}" alt="{{ product.name }}" loading="lazy" class="product-image">
+    </a>
+    <div class="product-body">
+      <p class="product-category">{{ product.category }}</p>
+      <h2 class="product-name">
+        <a href="/product/{{ product.slug }}">{{ product.name }}</a>
+      </h2>
+      <p class="product-price">{{ product.price_display }}</p>
+      <form action="/cart/add" method="post" class="add-form">
+        <input type="hidden" name="product_id" value="{{ product.id }}">
+        <input type="hidden" name="quantity" value="1">
+        <button type="submit" class="btn btn-primary">Add to cart</button>
+      </form>
+    </div>
+  </article>
+  {% else %}
+  <p class="empty-state">No products in this category right now.</p>
+  {% endfor %}
+</section>
+{% endblock %}

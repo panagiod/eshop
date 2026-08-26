@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+
+{% block title %}{{ product.name }} — {{ shop_name }}{% endblock %}
+
+{% block content %}
+<nav class="breadcrumb">
+  <a href="/">Shop</a>
+  <span aria-hidden="true">/</span>
+  <span>{{ product.name }}</span>
+</nav>
+
+<article class="product-detail">
+  <div class="product-detail-image">
+    <img src="{{ product.image_url }}" alt="{{ product.name }}">
+  </div>
+  <div class="product-detail-info">
+    <p class="product-category">{{ product.category }}</p>
+    <h1 class="product-detail-title">{{ product.name }}</h1>
+    <p class="product-detail-price">{{ product.price_display }}</p>
+    <p class="product-detail-desc">{{ product.description }}</p>
+    <p class="stock-note">{{ product.stock }} in stock</p>
+
+    <form action="/cart/add" method="post" class="add-form detail-add-form">
+      <input type="hidden" name="product_id" value="{{ product.id }}">
+      <label for="quantity" class="qty-label">Quantity</label>
+      <input type="number" id="quantity" name="quantity" value="1" min="1" max="{{ product.stock }}" class="qty-input">
+      <button type="submit" class="btn btn-primary btn-lg">Add to cart</button>
+    </form>
+  </div>
+</article>
+{% endblock %}

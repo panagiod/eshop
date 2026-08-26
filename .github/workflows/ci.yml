@@ -1,0 +1,52 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt -r requirements-dev.txt
+
+      - name: Run tests
+        run: python -m pytest tests/ -v
+
+      - name: Smoke test server
+        run: |
+          uvicorn src.main:app --host 127.0.0.1 --port 8080 &
+          pid=$!
+          sleep 2
+          curl -sf http://127.0.0.1:8080/health
+          curl -sf http://127.0.0.1:8080/ | grep -q Harbor
+          kill "$pid"
+
+      - name: Install kubectl
+        uses: azure/setup-kubectl@v4
+
+      - name: Validate Kustomize overlays
+        run: |
+          kubectl kustomize deploy/base >/dev/null
+          kubectl kustomize deploy/overlays/staging >/dev/null
+          kubectl kustomize deploy/overlays/prod >/dev/null
+
+  docker-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build image (no push on PR)
+        run: docker build -t eshop:ci .
