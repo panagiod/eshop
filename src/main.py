@@ -16,6 +16,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from src.admin import router as admin_router
 from src.db import init_schema, product_images_dir
 from src.models import FREE_SHIPPING_THRESHOLD_CENTS, format_money, order_total_cents, shipping_cents
+from src.ratelimit import RateLimitMiddleware
 from src.seed import seed_products
 from src.notify import notify_new_order
 from src.store import (
@@ -42,6 +43,7 @@ async def lifespan(_app: FastAPI):
 
 app = FastAPI(title="Print Me Maybe", version="0.2.0", lifespan=lifespan)
 app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY, max_age=60 * 60 * 24 * 7)
+app.add_middleware(RateLimitMiddleware)
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
 
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))

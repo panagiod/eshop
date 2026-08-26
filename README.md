@@ -45,6 +45,8 @@ Photos uploaded in admin are stored under `DATA_DIR` (default `/tmp/eshop-data`)
 
 Local password default: `printmemaybe`. On Render, copy `ADMIN_PASSWORD` from the service Environment tab (it is generated for you).
 
+Studio login allows 5 tries per 15 minutes per visitor. Checkout allows 12 orders per hour. Extra traffic gets HTTP 429.
+
 ## Order emails
 
 New checkouts email **dimitrioupanagiotis@outlook.com**. Reply to that message to write the customer.
