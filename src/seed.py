@@ -1,129 +1,135 @@
-"""Seed catalog data on first boot — safe to re-run (skips when products exist)."""
+"""Seed catalog — Print Me Maybe (3D) and LaserCraft 27 (laser engraving)."""
 
 from __future__ import annotations
 
 from src.db import get_connection
 
-# Starter catalog: enough variety for a demo storefront without external images.
+# Real-world product mix inspired by @print.me.maybe (MakerWorld/Printables)
+# and @lasercraft.27 custom engraving work.
 CATALOG = [
     {
-        "slug": "wireless-headphones",
-        "name": "Aurora Wireless Headphones",
-        "description": "Noise-cancelling over-ear headphones with 30-hour battery life.",
-        "price_cents": 8999,
-        "image_url": "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=600&h=600&fit=crop",
-        "category": "Audio",
-        "stock": 42,
-    },
-    {
-        "slug": "smart-watch",
-        "name": "Pulse Smart Watch",
-        "description": "Fitness tracking, heart-rate monitor, and 5-day battery in a slim case.",
-        "price_cents": 14999,
-        "image_url": "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600&h=600&fit=crop",
-        "category": "Wearables",
-        "stock": 28,
-    },
-    {
-        "slug": "canvas-tote",
-        "name": "Harbor Canvas Tote",
-        "description": "Reinforced cotton tote with interior pocket — perfect for daily carry.",
-        "price_cents": 2499,
-        "image_url": "https://images.unsplash.com/photo-1590874103328-eac38a683ce7?w=600&h=600&fit=crop",
-        "category": "Bags",
-        "stock": 65,
-    },
-    {
-        "slug": "ceramic-mug",
-        "name": "Morning Ritual Mug",
-        "description": "350 ml double-wall ceramic mug that keeps coffee hot longer.",
+        "slug": "mini-bookshelf-books",
+        "name": "Mini Anxiety Bookshelf Set",
+        "description": "Tiny 3D-printed books for a desktop anxiety bookshelf — a Print Me Maybe everyday design.",
         "price_cents": 1899,
-        "image_url": "https://images.unsplash.com/photo-1514228742587-6b1558fcca3d?w=600&h=600&fit=crop",
-        "category": "Home",
-        "stock": 120,
-    },
-    {
-        "slug": "running-shoes",
-        "name": "Trail Runner Pro",
-        "description": "Lightweight mesh upper with responsive foam for road and light trail.",
-        "price_cents": 11999,
-        "image_url": "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=600&h=600&fit=crop",
-        "category": "Footwear",
-        "stock": 35,
-    },
-    {
-        "slug": "desk-lamp",
-        "name": "Lumen Desk Lamp",
-        "description": "Adjustable LED lamp with warm/cool modes and USB charging port.",
-        "price_cents": 4599,
-        "image_url": "https://images.unsplash.com/photo-1507473885765-e6ed057f782c?w=600&h=600&fit=crop",
-        "category": "Home",
-        "stock": 50,
-    },
-    {
-        "slug": "backpack",
-        "name": "Urban Commuter Backpack",
-        "description": "Water-resistant 20 L pack with padded laptop sleeve up to 16 inches.",
-        "price_cents": 7999,
-        "image_url": "https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=600&h=600&fit=crop",
-        "category": "Bags",
+        "image_url": "https://images.unsplash.com/photo-1512820538081-55d60e3bbd90?w=600&h=600&fit=crop",
+        "category": "3D Prints",
         "stock": 40,
     },
     {
-        "slug": "sunglasses",
-        "name": "Coast Polarized Sunglasses",
-        "description": "UV400 polarized lenses in a lightweight acetate frame.",
-        "price_cents": 5999,
-        "image_url": "https://images.unsplash.com/photo-1572635196237-14b3f281503f?w=600&h=600&fit=crop",
-        "category": "Accessories",
+        "slug": "apple-watch-dock",
+        "name": "Spherical Apple Watch Dock",
+        "description": "Print-in-place spherical stand that cradles your watch overnight. Compact desk piece from Print Me Maybe.",
+        "price_cents": 2499,
+        "image_url": "https://images.unsplash.com/photo-1434493789847-2f02dc6ca35d?w=600&h=600&fit=crop",
+        "category": "3D Prints",
+        "stock": 32,
+    },
+    {
+        "slug": "nozzle-case-a1",
+        "name": "Bambu A1 Nozzle Case",
+        "description": "Organizer case for Bambu Lab A1 / A1 mini nozzles. Fits in a tool drawer; printed in durable PETG.",
+        "price_cents": 1299,
+        "image_url": "https://images.unsplash.com/photo-1631897642056-87c81992046b?w=600&h=600&fit=crop",
+        "category": "3D Prints",
         "stock": 55,
     },
     {
-        "slug": "yoga-mat",
-        "name": "Flow Yoga Mat",
-        "description": "5 mm natural rubber mat with alignment guides and carrying strap.",
-        "price_cents": 3499,
-        "image_url": "https://images.unsplash.com/photo-1601925260368-ae2f83cf8b7f?w=600&h=600&fit=crop",
-        "category": "Fitness",
-        "stock": 70,
+        "slug": "laptop-stand",
+        "name": "Simple Laptop Riser",
+        "description": "Minimal two-piece riser that lifts a laptop for a better desk angle. No fasteners — snap together and print.",
+        "price_cents": 2999,
+        "image_url": "https://images.unsplash.com/photo-1527864550417-7fd91fc51a46?w=600&h=600&fit=crop",
+        "category": "3D Prints",
+        "stock": 28,
     },
     {
-        "slug": "bluetooth-speaker",
-        "name": "Ripple Mini Speaker",
-        "description": "Pocket-sized speaker with 360° sound and IPX7 water resistance.",
-        "price_cents": 4999,
-        "image_url": "https://images.unsplash.com/photo-1608043152269-423dbba4e7e1?w=600&h=600&fit=crop",
-        "category": "Audio",
+        "slug": "tablet-stand",
+        "name": "Tilted Tablet Stand",
+        "description": "Angled stand for iPad and similar tablets. Stable footprint, cable pass-through at the back.",
+        "price_cents": 2799,
+        "image_url": "https://images.unsplash.com/photo-1544244015-0df4b3ffc6b0?w=600&h=600&fit=crop",
+        "category": "3D Prints",
+        "stock": 30,
+    },
+    {
+        "slug": "thread-spool-blocker",
+        "name": "Sewing Spool Blocker",
+        "description": "Keeps thread spools from unravelling in the sewing box. A small Print Me Maybe utility print.",
+        "price_cents": 999,
+        "image_url": "https://images.unsplash.com/photo-1452860606245-08befc0ff44b?w=600&h=600&fit=crop",
+        "category": "3D Prints",
         "stock": 80,
     },
     {
-        "slug": "notebook-set",
-        "name": "Studio Notebook Set",
-        "description": "Three A5 dotted notebooks with lay-flat binding and thick paper.",
-        "price_cents": 2199,
-        "image_url": "https://images.unsplash.com/photo-1531346878377-a5be20888e57?w=600&h=600&fit=crop",
-        "category": "Stationery",
-        "stock": 90,
+        "slug": "oak-coaster-set",
+        "name": "Engraved Oak Coaster Set",
+        "description": "Set of four oak coasters, laser-engraved by LaserCraft 27. Add a monogram or short quote at checkout notes.",
+        "price_cents": 2299,
+        "image_url": "https://images.unsplash.com/photo-1610701596007-11502861dcfa?w=600&h=600&fit=crop",
+        "category": "Laser Engraving",
+        "stock": 36,
     },
     {
-        "slug": "plant-pot",
-        "name": "Terracotta Planter",
-        "description": "Hand-glazed ceramic pot with drainage tray — 18 cm diameter.",
-        "price_cents": 2799,
-        "image_url": "https://images.unsplash.com/photo-1485955900006-10f4d324d411?w=600&h=600&fit=crop",
-        "category": "Home",
-        "stock": 45,
+        "slug": "cutting-board",
+        "name": "Personalized Cutting Board",
+        "description": "Hardwood board with a name, date, or family recipe heading engraved. Food-safe oil finish.",
+        "price_cents": 4999,
+        "image_url": "https://images.unsplash.com/photo-1590794056226-79ef3a8147e1?w=600&h=600&fit=crop",
+        "category": "Laser Engraving",
+        "stock": 22,
+    },
+    {
+        "slug": "name-plaque",
+        "name": "Custom Door Plaque",
+        "description": "Laser-cut and engraved name plaque for a studio, nursery, or front door. Choose wood or acrylic.",
+        "price_cents": 1999,
+        "image_url": "https://images.unsplash.com/photo-1565193566173-7a0ee3dbe50e?w=600&h=600&fit=crop",
+        "category": "Laser Engraving",
+        "stock": 40,
+    },
+    {
+        "slug": "leather-key-fob",
+        "name": "Engraved Leather Key Fob",
+        "description": "Vegetable-tanned leather fob with initials or a short word burned in by LaserCraft 27.",
+        "price_cents": 1699,
+        "image_url": "https://images.unsplash.com/photo-1583485088034-697b5bc54ccd?w=600&h=600&fit=crop",
+        "category": "Laser Engraving",
+        "stock": 48,
+    },
+    {
+        "slug": "slate-photo",
+        "name": "Photo-Engraved Slate",
+        "description": "Your photo etched onto natural slate. Send the image after checkout — high-contrast pictures work best.",
+        "price_cents": 3499,
+        "image_url": "https://images.unsplash.com/photo-1541123437800-1bb1317badc2?w=600&h=600&fit=crop",
+        "category": "Laser Engraving",
+        "stock": 18,
+    },
+    {
+        "slug": "family-name-sign",
+        "name": "Large Family Name Sign",
+        "description": "Statement wall sign with family name and established year. Laser-cut lettering on stained wood.",
+        "price_cents": 7900,
+        "image_url": "https://images.unsplash.com/photo-1513519245088-0e12902e35ca?w=600&h=600&fit=crop",
+        "category": "Laser Engraving",
+        "stock": 12,
     },
 ]
 
 
 def seed_products() -> None:
-    """Insert demo products when the catalog table is empty."""
+    """Insert catalog when empty; replace leftover demo SKUs from earlier shop versions."""
+    expected_slugs = {item["slug"] for item in CATALOG}
     with get_connection() as conn:
-        count = conn.execute("SELECT COUNT(*) FROM products").fetchone()[0]
-        if count > 0:
+        rows = conn.execute("SELECT slug FROM products").fetchall()
+        existing = {row["slug"] for row in rows}
+        if existing == expected_slugs:
             return
 
+        conn.execute("DELETE FROM order_items")
+        conn.execute("DELETE FROM orders")
+        conn.execute("DELETE FROM products")
         conn.executemany(
             """
             INSERT INTO products (slug, name, description, price_cents, image_url, category, stock)

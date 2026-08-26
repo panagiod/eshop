@@ -119,6 +119,27 @@ img {
   font-size: 0.9rem;
 }
 
+.footer-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.footer-brands {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem 1.5rem;
+}
+
+.footer-brands a {
+  color: var(--text);
+  font-weight: 500;
+}
+
+.footer-brands a:hover {
+  color: var(--accent);
+}
+
 .hero {
   margin-bottom: 2.5rem;
 }

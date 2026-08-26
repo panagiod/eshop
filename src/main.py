@@ -38,7 +38,7 @@ async def lifespan(_app: FastAPI):
     yield
 
 
-app = FastAPI(title="Harbor E-Shop", version="0.1.0", lifespan=lifespan)
+app = FastAPI(title="Print Me Maybe", version="0.2.0", lifespan=lifespan)
 app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY, max_age=60 * 60 * 24 * 7)
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
 
@@ -63,7 +63,7 @@ def cart_count(cart: dict[str, int]) -> int:
 
 
 def shop_name() -> str:
-    return os.environ.get("SHOP_NAME", "Harbor")
+    return os.environ.get("SHOP_NAME", "Print Me Maybe")
 
 
 def checkout_totals(lines: list) -> dict[str, int]:

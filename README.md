@@ -1,16 +1,18 @@
-# Harbor E-Shop
+# Print Me Maybe
 
-A **free-to-host** demo store: Python FastAPI, SQLite, and a responsive storefront.
+Shop for **3D prints** ([@print.me.maybe](https://www.instagram.com/print.me.maybe/)) and **laser engraving** ([@lasercraft.27](https://www.instagram.com/lasercraft.27/)).
 
-Browse products, add to cart, checkout — no payment processor, **$0/month** on Render's free instance.
+Free to host on Render — **$0/month**, no Kubernetes.
 
 [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/panagiod/eshop)
 
-That button is the only step to go live. Sign in with GitHub, keep the **Free** plan, click Apply. After the first deploy the shop is at `https://harbor-eshop.onrender.com` (Render may add a suffix).
+Sign in with GitHub, keep the **Free** plan, click Apply. After the first deploy the shop is at:
 
-No credit card. No Kubernetes. No paid add-ons.
+**https://print-me-maybe.onrender.com**
 
-> Free instances sleep after ~15 minutes idle (~1 minute wake). SQLite in `/tmp` resets on redeploy because the free plan has no disk.
+(Render may add a suffix if that name is taken.) Add your own domain later in Render → Settings → Custom Domains.
+
+No credit card. Free instances sleep after ~15 minutes idle (~1 minute wake). SQLite in `/tmp` resets on redeploy.
 
 ## Local run (optional)
 
@@ -23,16 +25,14 @@ uvicorn src.main:app --reload --port 8080
 
 Open http://localhost:8080
 
-## What you get
+## Catalog
 
-| Feature | Details |
-|---------|---------|
-| Product catalog | 12 seeded products across 6 categories |
-| Shopping cart | Session cookie while you browse |
-| Shipping | $5.99 under $75, free at $75+ |
-| Checkout | Shipping details + order confirmation |
-| Order lookup | `/order/{id}` after checkout |
-| Cost | $0 on Render Free (750 instance hours/month) |
+| Line | Instagram | What you get |
+|------|-----------|----------------|
+| 3D Prints | [@print.me.maybe](https://www.instagram.com/print.me.maybe/) | Everyday functional prints (docks, stands, organizers) |
+| Laser Engraving | [@lasercraft.27](https://www.instagram.com/lasercraft.27/) | Coasters, plaques, boards, leather, slate |
+
+Shipping is $5.99 under $75, free at $75+. Custom names/photos: DM after checkout.
 
 ## Environment variables
 
@@ -40,7 +40,7 @@ Open http://localhost:8080
 |----------|---------|---------|
 | `PORT` | set by Render | HTTP listen port |
 | `SESSION_SECRET` | auto-generated on Render | Signs session cookies |
-| `SHOP_NAME` | `Harbor` | Store branding |
+| `SHOP_NAME` | `Print Me Maybe` | Store branding |
 | `DATA_DIR` | `/tmp/eshop-data` | SQLite directory |
 
 ## License
