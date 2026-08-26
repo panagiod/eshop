@@ -57,10 +57,11 @@ New checkouts and security alerts email **dimitrioupanagiotis@outlook.com**. For
 2. **API Keys** → **Create API Key** → copy it
 3. Open **https://dashboard.render.com** (the shop host — not resend.com) → `print-me-maybe` → **Environment** → add `RESEND_API_KEY` → **Save**
 4. **Manual Deploy** of the live service
+5. Open **https://resend.com/domains** → **Add Domain** (a domain you own, not Outlook)
+6. Add the DNS records Resend shows, wait until the domain is **Verified**
+7. Render → Environment → set `RESEND_FROM` to `Print Me Maybe <orders@your-domain>` → **Save** → **Manual Deploy**
 
-Resend stores the key in your mail account. The live shop at `https://print-me-maybe.onrender.com` only reads keys from Render. After deploy, `/health` shows `"mail": true` when this process can send.
-
-The first send uses Resend’s `beth.t@example.com` from-address to your Outlook inbox. That is not your Outlook password.
+Resend stores the key in your mail account. The live shop only reads keys from Render. After a domain is verified and `RESEND_FROM` is set, `/health` still shows `"mail": true` (that flag means a key is present, not that Resend accepted the From address). `beth.t@example.com` is blocked on this account, and `@outlook.com` cannot be used as From.
 
 Blocked studio logins and checkout floods also email you, at most once per hour per type. Checkout still succeeds if mail fails.
 
@@ -76,6 +77,7 @@ Blocked studio logins and checkout floods also email you, at most once per hour 
 | `SHOP_URL` | `https://print-me-maybe.onrender.com` | Links in order emails |
 | `NOTIFY_EMAIL` | `dimitrioupanagiotis@outlook.com` | Inbox for new-order and attack alerts |
 | `RESEND_API_KEY` | empty (mail skipped) | Resend API key so Render can send mail |
+| `RESEND_FROM` | `Print Me Maybe <beth.t@example.com>` | Must use a domain verified at resend.com/domains |
 | `ATTACK_ALERT_COOLDOWN` | `3600` | Seconds between similar security emails |
 | `DATA_DIR` | `/tmp/eshop-data` | SQLite directory |
 

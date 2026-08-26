@@ -9,6 +9,8 @@
 <div class="alert {% if mail_ok %}alert-ok{% else %}alert-error{% endif %}" role="alert">{{ mail_status }}</div>
 {% elif not mail_ready %}
 <div class="alert alert-error" role="status">{{ mail_setup_hint }}</div>
+{% elif mail_needs_domain %}
+<div class="alert alert-error" role="status">{{ mail_domain_hint }}</div>
 {% else %}
 <div class="alert alert-ok" role="status">Mail is on for this server. Alerts go to {{ notify_email }}.</div>
 {% endif %}

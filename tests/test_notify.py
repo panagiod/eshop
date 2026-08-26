@@ -272,3 +272,48 @@ def test_send_test_email_explains_own_inbox_rule(monkeypatch) -> None:
     ok, message = send_test_email()
     assert ok is False
     assert "signed up with" in message.lower() or "NOTIFY_EMAIL" in message
+
+
+def test_send_test_email_explains_unverified_from_domain(monkeypatch) -> None:
+    monkeypatch.setenv("RESEND_API_KEY", "re_test_key")
+    monkeypatch.setenv("NOTIFY_EMAIL", "dimitrioupanagiotis@outlook.com")
+
+    class FakeError(urllib.error.HTTPError):
+        def __init__(self):
+            super().__init__(
+                url="https://api.resend.com/emails",
+                code=403,
+                msg="Forbidden",
+                hdrs=None,
+                fp=BytesIO(
+                    b'{"statusCode":403,"name":"validation_error",'
+                    b'"message":"The example.com domain is not verified. '
+                    b'Please, add and verify your domain on https://resend.com/domains"}'
+                ),
+            )
+
+    def boom(*args, **kwargs):
+        raise FakeError()
+
+    monkeypatch.setattr("src.notify.urllib.request.urlopen", boom)
+    from src.notify import send_test_email
+
+    ok, message = send_test_email()
+    assert ok is False
+    assert "resend.com/domains" in message
+    assert "RESEND_FROM" in message
+    assert "outlook.com" in message.lower()
+
+
+def test_studio_orders_warns_when_from_is_resend_dev(monkeypatch) -> None:
+    monkeypatch.setenv("RESEND_API_KEY", "re_test_key")
+    monkeypatch.delenv("RESEND_FROM", raising=False)
+    init_schema()
+    seed_products()
+    client = TestClient(app)
+    client.post("/admin/login", data={"password": "printmemaybe"})
+    page = client.get("/admin/orders")
+    assert page.status_code == 200
+    assert "resend.com/domains" in page.text
+    assert "RESEND_FROM" in page.text
+    assert "Mail is on for this server" not in page.text

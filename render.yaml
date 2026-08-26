@@ -26,6 +26,9 @@ services:
       # Free Resend API key — add in Render → Environment (never commit it).
       - key: RESEND_API_KEY
         sync: false
+      # After resend.com/domains is Verified: Print Me Maybe <orders@your-domain>
+      - key: RESEND_FROM
+        sync: false
       # Free instances have no persistent disk — SQLite lives in /tmp (resets on redeploy).
       - key: DATA_DIR
         value: /tmp/eshop-data

@@ -83,6 +83,23 @@ def mail_not_configured_message() -> str:
     )
 
 
+def resend_from_needs_domain() -> bool:
+    """True when From is still Resend's shared test address (blocked on many accounts)."""
+    from_addr = resend_from().lower()
+    return "resend.dev" in from_addr or "@example.com>" in from_addr or from_addr.endswith("@example.com")
+
+
+def mail_domain_unverified_message() -> str:
+    """Resend 403: From domain is not verified. Outlook.com cannot be used as From."""
+    return (
+        "Resend blocked the send: the From domain is not verified. "
+        "beth.t@example.com does not work on this account, and you cannot "
+        "send as @outlook.com. Add a domain you own at https://resend.com/domains, "
+        "wait until it says Verified, then on Render set RESEND_FROM to "
+        'Print Me Maybe <orders@your-domain> and Manual Deploy.'
+    )
+
+
 def reset_alerts() -> None:
     """Clear attack-alert cooldowns (tests)."""
     with _alert_lock:
@@ -247,11 +264,8 @@ def _explain_mail_error(detail: bytes | str, status: int | None = None) -> str:
         )
     if "api key is invalid" in lower or "invalid api key" in lower or status == 401:
         return "Resend rejected the API key. Create a new key, paste RESEND_API_KEY on Render, Save, then Manual Deploy."
-    if "domain is not verified" in lower or "onboarding@resend.dev" in lower:
-        return (
-            "Resend needs the From address onboarding@resend.dev (already the default) "
-            "or a verified domain. Check RESEND_FROM on Render."
-        )
+    if "domain is not verified" in lower or "add and verify your domain" in lower:
+        return mail_domain_unverified_message()
     return message[:400]
 
 
