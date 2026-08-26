@@ -45,7 +45,29 @@
 </table>
 
 <div class="cart-summary">
-  <p class="cart-total">Subtotal: <strong>{{ format_money(total_cents) }}</strong></p>
+  <dl class="totals-breakdown">
+    <div class="totals-row">
+      <dt>Subtotal</dt>
+      <dd>{{ format_money(subtotal_cents) }}</dd>
+    </div>
+    <div class="totals-row">
+      <dt>Shipping</dt>
+      <dd>
+        {% if shipping_cents == 0 %}
+        <span class="free-badge">Free</span>
+        {% else %}
+        {{ format_money(shipping_cents) }}
+        {% endif %}
+      </dd>
+    </div>
+    <div class="totals-row totals-row-total">
+      <dt>Total</dt>
+      <dd><strong>{{ format_money(total_cents) }}</strong></dd>
+    </div>
+  </dl>
+  {% if shipping_cents > 0 %}
+  <p class="shipping-hint">Free shipping on orders over $75.</p>
+  {% endif %}
   <a href="/checkout" class="btn btn-primary btn-lg">Proceed to checkout</a>
 </div>
 {% else %}

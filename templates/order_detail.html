@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block title %}Order #{{ order.id }} — {{ shop_name }}{% endblock %}
+
+{% block content %}
+<h1 class="page-title">Order #{{ order.id }}</h1>
+<p class="order-meta">Placed {{ order.created_at }}</p>
+
+<div class="checkout-layout">
+  <section class="order-details">
+    <h2>Shipping</h2>
+    <p class="order-shipping-name">{{ order.customer_name }}</p>
+    <p class="order-shipping-email">{{ order.customer_email }}</p>
+    <p class="order-shipping-address">{{ order.shipping_address }}</p>
+  </section>
+
+  <aside class="order-summary">
+    <h2>Items</h2>
+    <ul class="summary-list">
+      {% for item in order.items %}
+      <li>
+        <span>{{ item.product_name }} × {{ item.quantity }}</span>
+        <span>{{ item.line_total_display }}</span>
+      </li>
+      {% endfor %}
+    </ul>
+    <dl class="totals-breakdown">
+      <div class="totals-row">
+        <dt>Subtotal</dt>
+        <dd>{{ format_money(order.subtotal_cents) }}</dd>
+      </div>
+      <div class="totals-row">
+        <dt>Shipping</dt>
+        <dd>
+          {% if order.shipping_cents == 0 %}
+          <span class="free-badge">Free</span>
+          {% else %}
+          {{ format_money(order.shipping_cents) }}
+          {% endif %}
+        </dd>
+      </div>
+      <div class="totals-row totals-row-total">
+        <dt>Total</dt>
+        <dd><strong>{{ order.total_display }}</strong></dd>
+      </div>
+    </dl>
+  </aside>
+</div>
+
+<a href="/" class="btn btn-primary">Back to shop</a>
+{% endblock %}

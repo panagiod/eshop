@@ -33,6 +33,11 @@ spec:
               value: Harbor
             - name: DATA_DIR
               value: /data
+            - name: SESSION_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: eshop-secrets
+                  key: session-secret
           volumeMounts:
             - name: data
               mountPath: /data
@@ -66,6 +71,15 @@ spec:
       volumes:
         - name: data
           emptyDir: {}
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: eshop-secrets
+  namespace: eshop
+type: Opaque
+stringData:
+  session-secret: change-me-before-production
 ---
 apiVersion: v1
 kind: Service

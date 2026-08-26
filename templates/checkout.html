@@ -40,7 +40,26 @@
       </li>
       {% endfor %}
     </ul>
-    <p class="summary-total">Total: <strong>{{ format_money(total_cents) }}</strong></p>
+    <dl class="totals-breakdown">
+      <div class="totals-row">
+        <dt>Subtotal</dt>
+        <dd>{{ format_money(subtotal_cents) }}</dd>
+      </div>
+      <div class="totals-row">
+        <dt>Shipping</dt>
+        <dd>
+          {% if shipping_cents == 0 %}
+          <span class="free-badge">Free</span>
+          {% else %}
+          {{ format_money(shipping_cents) }}
+          {% endif %}
+        </dd>
+      </div>
+      <div class="totals-row totals-row-total">
+        <dt>Total</dt>
+        <dd><strong>{{ format_money(total_cents) }}</strong></dd>
+      </div>
+    </dl>
   </aside>
 </div>
 {% endblock %}

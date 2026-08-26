@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Iterable
 
 from src.db import get_connection
-from src.models import CartLine, Product
+from src.models import CartLine, Order, OrderItem, Product, order_total_cents
 
 
 def list_products(category: str | None = None) -> list[Product]:
@@ -68,8 +68,45 @@ def build_cart_lines(cart: dict[str, int]) -> list[CartLine]:
 
 
 def cart_total_cents(lines: list[CartLine]) -> int:
-    """Sum line totals for checkout."""
+    """Sum line totals for checkout subtotal."""
     return sum(line.line_total_cents for line in lines)
+
+
+def get_order(order_id: int) -> Order | None:
+    """Fetch a placed order and its line items for the confirmation page."""
+    with get_connection() as conn:
+        row = conn.execute("SELECT * FROM orders WHERE id = ?", (order_id,)).fetchone()
+        if not row:
+            return None
+
+        item_rows = conn.execute(
+            """
+            SELECT oi.quantity, oi.unit_price_cents, p.name AS product_name
+            FROM order_items oi
+            JOIN products p ON p.id = oi.product_id
+            WHERE oi.order_id = ?
+            ORDER BY oi.id
+            """,
+            (order_id,),
+        ).fetchall()
+
+    items = [
+        OrderItem(
+            product_name=row["product_name"],
+            quantity=row["quantity"],
+            unit_price_cents=row["unit_price_cents"],
+        )
+        for row in item_rows
+    ]
+    return Order(
+        id=row["id"],
+        customer_name=row["customer_name"],
+        customer_email=row["customer_email"],
+        shipping_address=row["shipping_address"],
+        total_cents=row["total_cents"],
+        created_at=row["created_at"],
+        items=items,
+    )
 
 
 def place_order(
@@ -83,9 +120,10 @@ def place_order(
     if not lines:
         raise ValueError("Cart is empty")
 
-    total = cart_total_cents(lines)
+    total = order_total_cents(cart_total_cents(lines))
 
     with get_connection() as conn:
+        conn.execute("BEGIN IMMEDIATE")
         for line in lines:
             row = conn.execute(
                 "SELECT stock FROM products WHERE id = ?",
