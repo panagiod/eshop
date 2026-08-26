@@ -1,20 +1,85 @@
 # Print Me Maybe
 
-Shop for **3D prints** ([@print.me.maybe](https://www.instagram.com/print.me.maybe/)) and **laser engraving** ([@lasercraft.27](https://www.instagram.com/lasercraft.27/)).
+Small e-shop for **3D prints** ([@print.me.maybe](https://www.instagram.com/print.me.maybe/)) and **laser engraving** ([@lasercraft.27](https://www.instagram.com/lasercraft.27/)). Made in Cyprus. Prices in **EUR**.
 
-Free to host on Render — **$0/month**, no Kubernetes.
+This repository is a FastAPI + SQLite storefront with a session cart, demo checkout (no card payments), and a password-protected studio for orders and stock. It is meant to run on [Render](https://render.com) Free.
+
+**Live shop:** [https://print-me-maybe.onrender.com](https://print-me-maybe.onrender.com)
 
 [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/panagiod/eshop)
 
-Sign in with GitHub, keep the **Free** plan, click Apply. After the first deploy the shop is at:
+## Contents
 
-**https://print-me-maybe.onrender.com**
+- [What this project is](#what-this-project-is)
+- [Features](#features)
+- [Stack](#stack)
+- [Repository layout](#repository-layout)
+- [Local development](#local-development)
+- [Tests and CI](#tests-and-ci)
+- [Production (Render)](#production-render)
+- [Configuration](#configuration)
+- [Shop behaviour](#shop-behaviour)
+- [Studio admin](#studio-admin)
+- [Order emails](#order-emails)
+- [Security](#security)
+- [Data on Render Free](#data-on-render-free)
+- [License](#license)
 
-(Render may add a suffix if that name is taken.) Add your own domain later in Render → Settings → Custom Domains.
+## What this project is
 
-No credit card. Free instances sleep after ~15 minutes idle (~1 minute wake). SQLite in `/tmp` resets on redeploy.
+| This project **does** | This project **does not** |
+|-----------------------|---------------------------|
+| Show a catalog, cart, and checkout form | Charge cards or talk to Revolut/Stripe |
+| Save orders in SQLite and email the studio (once mail is configured) | Keep data across Render sleep/redeploy (Free plan `/tmp`) |
+| Let the studio update order status, notes, stock, and add products | Use `print-me-maybe.onrender.com` as an email-sending domain |
+| Rate-limit login/checkout and send security alerts | Collect payment at checkout |
 
-## Local run (optional)
+Customers are told to send custom names, photos, or print files via **Instagram DM**. Payment is arranged off-site.
+
+## Features
+
+- Catalog with category filter (3D Prints / Laser Engraving)
+- Session cart; quantity cannot exceed stock
+- Shipping €3.50 under €25, free at €25+
+- Demo checkout: name, email, address — **no payment collected**
+- Customer order page at `/order/{unguessable-token}` (numeric `/order/1` is not public)
+- Studio at `/admin` (not linked in public nav): orders, notes, cancel/restock, add product + photo
+- Background order email via [Resend](https://resend.com) (needs a domain you own — see [Order emails](#order-emails))
+- JSON catalog at `GET /api/products`
+- Liveness at `GET /health` (`{"status":"ok","service":"eshop","mail":true|false}`)
+
+## Stack
+
+- **Python 3.12**, [FastAPI](https://fastapi.tiangolo.com/), Uvicorn
+- **Jinja2** HTML templates + `static/css`
+- **SQLite** under `DATA_DIR` (default `/tmp/eshop-data/eshop.db`)
+- Signed **session cookies** for cart and studio login
+- GitHub Actions CI: pytest + smoke `curl` of `/health` and home
+
+## Repository layout
+
+```
+src/                 FastAPI app
+  main.py            Storefront routes (home, product, cart, checkout, health)
+  admin.py           Studio login, orders, stock, test email
+  store.py           Products, cart lines, place_order
+  db.py              SQLite schema and DATA_DIR
+  models.py          Product/Order types, EUR formatting, shipping rules
+  seed.py            Catalog copied from Instagram listings
+  notify.py          Resend/SMTP mail, attack alerts
+  ratelimit.py       Per-IP limits
+  security.py        Secrets, HTTPS cookies, CSP/HSTS
+  uploads.py         Admin product photos
+templates/           HTML (base, shop, cart, checkout, admin)
+static/              CSS and seed product images
+tests/               pytest (shop, admin, mail, rate limit, security)
+render.yaml          Render Blueprint (Free, Frankfurt)
+.github/workflows/ci.yml
+```
+
+## Local development
+
+Requires Python 3.12+.
 
 ```bash
 python3 -m venv .venv
@@ -23,110 +88,156 @@ pip install -r requirements.txt -r requirements-dev.txt
 uvicorn src.main:app --reload --port 8080
 ```
 
-Open http://localhost:8080
+Open [http://localhost:8080](http://localhost:8080). Studio: [http://localhost:8080/admin/login](http://localhost:8080/admin/login) — password `printmemaybe` unless you set `ADMIN_PASSWORD`.
 
-## Catalog
+SQLite and uploaded photos go to `DATA_DIR` (default `/tmp/eshop-data`).
 
-Listings for **3D prints** come from public [@print.me.maybe](https://www.instagram.com/print.me.maybe/) posts (names, euro prices, and photos). Posts that did not name a price (cake toppers, bear keychains) use starting prices in line with similar EU listings. **Laser engraving** is custom work from [@lasercraft.27](https://www.instagram.com/lasercraft.27/) — that profile is login-walled, so those SKUs use branded placeholders and comparable EU laser prices until studio photos and quotes are added.
+## Tests and CI
 
-Prices are in **EUR**. Shipping is €3.50 under €25, free at €25+. Custom names, colours, and files: order notes or Instagram DM.
+```bash
+python3 -m pytest tests/ -v
+```
 
-On boot, catalog copy and prices for seed SKUs are upserted by slug. Admin stock changes and products added from `/admin/stock` are kept.
+GitHub Actions (`.github/workflows/ci.yml`) runs on every pull request and on push to `main`: install deps, pytest, then boot Uvicorn and `curl` `/health` and `/`.
+
+## Production (Render)
+
+Blueprint: `render.yaml`. Service name **print-me-maybe**, Python, **Free**, region **Frankfurt**.
+
+1. GitHub: [panagiod/eshop](https://github.com/panagiod/eshop)
+2. [Render](https://dashboard.render.com) → New → Blueprint, or the Deploy button above
+3. Keep the **Free** plan (no credit card)
+4. After the first deploy: **https://print-me-maybe.onrender.com**
+
+Render generates `SESSION_SECRET` and `ADMIN_PASSWORD`. Copy the admin password from the service **Environment** tab. The service **will not boot** on Render without those two values.
+
+**Manual Deploy** is required after you change environment variables (including `RESEND_API_KEY` and `RESEND_FROM`). Pushing to `main` does not always auto-deploy on Free.
+
+Free instances **sleep** after about 15 minutes idle (~1 minute to wake). `/health` is the health check path.
+
+Two dashboards that are easy to mix up:
+
+| Site | URL | Role |
+|------|-----|------|
+| **Render** | https://dashboard.render.com | Runs the website |
+| **Resend** | https://resend.com | Sends email |
+
+## Configuration
+
+Set these on Render → **print-me-maybe** → **Environment**. Never commit secrets or paste API keys into git/chat.
+
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `PORT` | set by Render | HTTP listen port |
+| `PYTHON_VERSION` | `3.12.3` | Render runtime |
+| `SESSION_SECRET` | generated on Render | Signs session cookies; **required** in production |
+| `ADMIN_PASSWORD` | `printmemaybe` locally; **required** on Render | Studio login |
+| `SESSION_HTTPS_ONLY` | on when `RENDER` is set | Secure cookie flag |
+| `SHOP_NAME` | `Print Me Maybe` | Branding |
+| `SHOP_URL` | `https://print-me-maybe.onrender.com` | Links in emails |
+| `NOTIFY_EMAIL` | `dimitrioupanagiotis@outlook.com` | Inbox for order and attack alerts |
+| `RESEND_API_KEY` | empty (mail skipped) | Resend API key (`re_…`) |
+| `RESEND_FROM` | `Print Me Maybe <beth.t@example.com>` | Must be an address on a **verified** Resend domain — not onrender.com / outlook.com |
+| `ATTACK_ALERT_COOLDOWN` | `3600` | Seconds between similar security emails |
+| `DATA_DIR` | `/tmp/eshop-data` | SQLite + uploaded photos |
+| `NOTIFY_SYNC` | unset | Set to `1` in tests so checkout waits for mail |
+| `RATE_LIMIT_DISABLED` | unset | Set to `1` to turn limits off (tests) |
+
+`GET /health` includes `"mail": true` when `NOTIFY_EMAIL` and (`RESEND_API_KEY` or `SMTP_PASSWORD`) are set. That does **not** mean Resend accepted the From domain.
+
+## Shop behaviour
+
+**Catalog.** Seed SKUs live in `src/seed.py` (names, euro prices, photos from public Instagram where a price was named). On boot, seed rows are upserted **by slug**. Stock changes and products added in studio are kept; seed does not reset quantity.
+
+**Cart.** Stored in the signed session cookie (7 days). Add/update quantity is capped at remaining stock. Zero stock hides a product from the shop.
+
+**Checkout.** POST `/checkout` with name, email, shipping address. Creates an order, decrements stock, clears the cart, then emails the studio in a **background thread** (checkout does not wait on Resend).
+
+**Customer order URL.** `/order/{lookup_token}` — random token, not the numeric id.
 
 ## Studio admin
 
-After login at `/admin`:
+Public nav does not advertise `/admin`. Login: [https://print-me-maybe.onrender.com/admin/login](https://print-me-maybe.onrender.com/admin/login).
 
-- **Orders** — list by status (New → In progress → Ready to ship → Shipped)
-- **Order detail** — customer, items, studio notes (Instagram custom requests). Cancelling restocks; reopening deducts stock again.
-- **Stock** — add a product (name, description, euro price, category, photo, starting quantity) and set remaining quantity. Zero hides the product from the shop.
+| Page | What it does |
+|------|----------------|
+| `/admin/orders` | Filter by status; **Send test email** |
+| `/admin/orders/{id}` | Status, notes, cancel (restock) / reopen (deduct again) |
+| `/admin/stock` | Add product (name, description, EUR price, category, photo, qty); set stock |
 
-Photos uploaded in admin are stored under `DATA_DIR` (default `/tmp/eshop-data`). On Render Free that directory resets when the instance sleeps or redeploys, same as the SQLite catalog.
+Order statuses: New → In progress → Ready to ship → Shipped, plus Cancelled.
 
-Local password default: `printmemaybe`. On Render, copy `ADMIN_PASSWORD` from the service Environment tab (it is generated for you).
-
-Studio login allows 5 tries per 15 minutes per visitor. Checkout allows 12 orders per hour. Extra traffic gets HTTP 429.
-
-On Render, `SESSION_SECRET` and `ADMIN_PASSWORD` are required (the service will not start without them). Session cookies are HTTPS-only. Customer order pages use an unguessable token, not `/order/1`. Cart quantity cannot exceed stock.
+Uploaded photos are served from `/media/products/...` and stored under `DATA_DIR/product-images`. On Render Free they disappear when `/tmp` is wiped.
 
 ## Order emails
 
-New checkouts and security alerts go to **dimitrioupanagiotis@outlook.com**. Checkout still succeeds if mail fails. FormSubmit cannot send from Render (Cloudflare blocks it), so the shop uses [Resend](https://resend.com).
+New checkouts and blocked login/checkout floods email **dimitrioupanagiotis@outlook.com**. Checkout still succeeds if mail fails.
 
-**Current status:** `RESEND_API_KEY` is on Render and the shop can reach Resend. Order **#2** was posted to Resend and **rejected (HTTP 403)** with “domain not verified”. Outlook stays empty until a domain you own is verified and `RESEND_FROM` is set. Do this after you buy a domain — not before.
-
-### Two different sites (easy to mix up)
-
-| Site | URL | What it is |
-|------|-----|------------|
-| **Render** | https://dashboard.render.com | Hosts the live shop |
-| **Resend** | https://resend.com | Sends the emails |
-
-The website customers open is **https://print-me-maybe.onrender.com**. That is not an email domain.
+**Current status:** `RESEND_API_KEY` is on Render. The shop can call Resend. Order **#2** was accepted as an API call and **rejected (HTTP 403)** with “domain not verified”. Outlook stays empty until you buy a domain, verify it at Resend, and set `RESEND_FROM`. Do that after you own a domain — not before.
 
 ### What you cannot add in Resend → Domains
 
 These names are not yours. Verification will fail:
 
-- `print-me-maybe.onrender.com` — Render’s web address for the shop (keep using it in the browser)
+- `print-me-maybe.onrender.com` — Render’s **web** address (keep using it in the browser)
 - `onrender.com` — belongs to Render
-- `outlook.com` — belongs to Microsoft (your inbox can still *receive* there)
-- `resend.dev` / `example.com` / `beth.t@example.com` — Resend’s shared test sender; this account blocks it (403)
+- `outlook.com` — belongs to Microsoft (Outlook can still *receive*)
+- `resend.dev` / `example.com` / `beth.t@example.com` — Resend shared test sender; this account returns 403
 - `@print.me.maybe` — Instagram, not a domain
 
 A domain is a name you **buy**, such as `printmemaybe.com`. Mail then sends as `orders@printmemaybe.com` and can still land in Outlook.
 
 ### Already done
 
-1. Resend account: **dimitrioupanagiotis** (signed up in line with the Outlook address)
-2. Resend API key created (starts with `re_`)
-3. That key saved on Render → **print-me-maybe** → **Environment** as `RESEND_API_KEY` (never paste the key into git or chat)
-4. Shop can call `POST https://api.resend.com/emails` (see Resend → **Logs**, not **Emails → Receiving**)
+1. Resend account **dimitrioupanagiotis** (aligned with the Outlook address)
+2. API key created (`re_…`) and saved on Render as `RESEND_API_KEY` (never paste the key into git or chat)
+3. Shop `User-Agent`: `PrintMeMaybeShop/1.0` — see Resend **Logs**, not **Emails → Receiving**
 
-**Emails → Receiving** is the wrong tab (inbound `@….resend.app` addresses). Use **Emails → Sending** and **Logs**. A row there with status **403** is a refused send, not a delivered message.
+**Emails → Receiving** is inbound `@….resend.app` and is unused. Use **Emails → Sending** and **Logs**. Status **403** means refused, not delivered.
 
 ### When you have bought a domain
 
-Replace `printmemaybe.com` below with the name you actually bought.
+Replace `printmemaybe.com` with the name you bought.
 
 1. Buy a domain (Cloudflare, Namecheap, Google, or similar). `.com` or `.cy` is fine.
-2. Open **https://resend.com/domains** → **Add Domain** → enter `printmemaybe.com` (no `https://`, no `www` unless Resend asks for that exact name).
-3. Copy every DNS record Resend shows (TXT / MX) into the domain’s DNS at the registrar. Save. Do not skip rows.
-4. Wait until Resend shows **Verified** (often minutes; can take longer). Do not continue while it is Pending.
-5. Open **https://dashboard.render.com** → service **print-me-maybe** → **Environment**.
-6. Add or edit:
+2. [resend.com/domains](https://resend.com/domains) → **Add Domain** → `printmemaybe.com` (no `https://`).
+3. Copy every DNS record Resend shows (TXT / MX) into the registrar DNS. Save. Do not skip rows.
+4. Wait until Resend shows **Verified**. Do not continue while Pending.
+5. [dashboard.render.com](https://dashboard.render.com) → **print-me-maybe** → **Environment**.
+6. Set `RESEND_FROM` to `Print Me Maybe <orders@printmemaybe.com>` (any local-part: `orders`, `studio`, `hello` — no mailbox required at that address).
+7. Confirm `NOTIFY_EMAIL` is `dimitrioupanagiotis@outlook.com`.
+8. **Save**, then **Manual Deploy**.
+9. Studio [Orders](https://print-me-maybe.onrender.com/admin/orders) → **Send test email**.
+10. Resend **Sending** / **Logs**: **Delivered**, not 403.
+11. Outlook: search Inbox, Junk, Other, Focused. Mark Not junk the first time.
 
-   | Key | Value |
-   |-----|--------|
-   | `RESEND_FROM` | `Print Me Maybe <orders@printmemaybe.com>` |
+Optional later: point the **website** at the same domain (Render → Settings → **Custom Domains**). That is separate from mail. Mail only needs Resend verification + `RESEND_FROM`.
 
-   Use your real domain. The part before `@` can be `orders`, `studio`, or `hello`. It does not need a real mailbox at that address.
-7. Confirm `NOTIFY_EMAIL` is `dimitrioupanagiotis@outlook.com` (where you want to *read* mail).
-8. **Save** environment changes, then **Manual Deploy**. New env vars are unused until a new deploy.
-9. After deploy, open studio **https://print-me-maybe.onrender.com/admin/orders** → **Send test email**.
-10. Resend → **Emails → Sending** (and **Logs**): look for **Delivered**, not 403. If 403, the From domain still does not match the verified name.
-11. Outlook: search **Inbox, Junk, Other, Focused** for `Print Me Maybe` or `orders@printmemaybe.com`. Mark Not junk the first time.
+Attack alerts (blocked studio login or checkout flood) email at most once per hour per type.
 
-Optional later: point the **website** at the same domain (Render → Settings → **Custom Domains**). That is separate from mail. Mail only needs Resend domain verification + `RESEND_FROM`.
+## Security
 
-Blocked studio logins and checkout floods also email you, at most once per hour per type.
+- On Render, missing `SESSION_SECRET` or `ADMIN_PASSWORD` refuses to boot
+- Session cookies: `SameSite=lax`, HTTPS-only in production
+- Studio password compared with SHA-256 + `hmac.compare_digest` (failed logins are logged, never the password)
+- Security headers: `nosniff`, `DENY` framing, Referrer-Policy, Permissions-Policy, CSP, HSTS on HTTPS
+- Customer orders use `lookup_token`, not sequential public URLs
 
-## Environment variables
+Rate limits (in-memory, per instance, by IP):
 
-| Variable | Default | Purpose |
-|----------|---------|---------|
-| `PORT` | set by Render | HTTP listen port |
-| `SESSION_SECRET` | auto-generated on Render | Signs session cookies |
-| `ADMIN_PASSWORD` | `printmemaybe` locally; required on Render | Studio admin login |
-| `SESSION_HTTPS_ONLY` | on when `RENDER` is set | Secure session cookie |
-| `SHOP_NAME` | `Print Me Maybe` | Store branding |
-| `SHOP_URL` | `https://print-me-maybe.onrender.com` | Links in order emails |
-| `NOTIFY_EMAIL` | `dimitrioupanagiotis@outlook.com` | Inbox for new-order and attack alerts |
-| `RESEND_API_KEY` | empty (mail skipped) | Resend API key so Render can send mail |
-| `RESEND_FROM` | `Print Me Maybe <beth.t@example.com>` | After a domain is Verified at resend.com/domains: `Print Me Maybe <orders@your-domain>`. Not onrender.com / outlook.com |
-| `ATTACK_ALERT_COOLDOWN` | `3600` | Seconds between similar security emails |
-| `DATA_DIR` | `/tmp/eshop-data` | SQLite directory |
+| Action | Default |
+|--------|---------|
+| Pages | 240 / minute |
+| Studio login POST | 5 / 15 minutes |
+| Checkout POST | 12 / hour |
+| Cart POST | 60 / minute |
+
+`/health`, `/static/`, `/media/` are exempt. HTTP 429 includes `Retry-After`.
+
+## Data on Render Free
+
+There is **no persistent disk**. `DATA_DIR=/tmp/eshop-data` is wiped when the instance sleeps or redeploys: orders, stock, and uploaded photos reset to the seed catalog. For lasting data you need a paid disk or an external database — not configured here.
 
 ## License
 
-MIT — use freely for learning and demos.
+[MIT](LICENSE) — use freely for learning and demos.
