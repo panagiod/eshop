@@ -27,11 +27,11 @@ Open http://localhost:8080
 
 ## Catalog
 
-Listings for **3D prints** come from public [@print.me.maybe](https://www.instagram.com/print.me.maybe/) posts (names, euro prices, and photos). **Laser engraving** is custom work from [@lasercraft.27](https://www.instagram.com/lasercraft.27/) — that profile is login-walled, so those SKUs use branded placeholders until studio photos are added.
+Listings for **3D prints** come from public [@print.me.maybe](https://www.instagram.com/print.me.maybe/) posts (names, euro prices, and photos). Posts that did not name a price (cake toppers, bear keychains) use starting prices in line with similar EU listings. **Laser engraving** is custom work from [@lasercraft.27](https://www.instagram.com/lasercraft.27/) — that profile is login-walled, so those SKUs use branded placeholders and comparable EU laser prices until studio photos and quotes are added.
 
 Prices are in **EUR**. Shipping is €3.50 under €25, free at €25+. Custom names, colours, and files: order notes or Instagram DM.
 
-The catalog is re-seeded when product slugs change (this wipes local/demo orders).
+On boot, catalog copy and prices are upserted by slug. Admin stock changes are kept. SKUs removed from the seed file are deleted.
 
 ## Studio admin
 

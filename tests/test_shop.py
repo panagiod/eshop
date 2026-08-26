@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 from fastapi.testclient import TestClient
 
-from src.db import init_schema
+from src.db import get_connection, init_schema
 from src.main import app
 from src.models import STANDARD_SHIPPING_CENTS, order_total_cents, shipping_cents
 from src.seed import seed_products
@@ -35,6 +35,10 @@ def test_health_and_catalog() -> None:
     assert "Made in Cyprus" in home.text
     assert "Floral Glasses Case" in home.text
     assert "€4.00" in home.text
+    assert "Custom Cake Topper" in home.text
+    assert "€15.00" in home.text
+    assert "Teddy Bear Keychain" in home.text
+    assert "€5.00" in home.text
     assert "/static/images/products/glasses-case.jpg" in home.text
 
     api = client.get("/api/products")
@@ -223,3 +227,16 @@ def test_cancel_restocks_and_reopen_deducts() -> None:
     )
     after_reopen = next(p for p in list_all_products() if p.slug == "glasses-case").stock
     assert after_reopen == before - 1
+
+
+def test_seed_updates_prices_without_resetting_stock() -> None:
+    init_schema()
+    seed_products()
+    with get_connection() as conn:
+        conn.execute(
+            "UPDATE products SET price_cents = 1, stock = 7 WHERE slug = 'custom-cake-topper'"
+        )
+    seed_products()
+    product = next(p for p in list_all_products() if p.slug == "custom-cake-topper")
+    assert product.price_cents == 1500
+    assert product.stock == 7
