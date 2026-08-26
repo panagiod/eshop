@@ -101,8 +101,8 @@ def _alert_cooldown() -> int:
 def _alert_allowed(kind: str) -> bool:
     now = time.monotonic()
     with _alert_lock:
-        last = _alert_last.get(kind, 0)
-        if now - last < _alert_cooldown():
+        last = _alert_last.get(kind)
+        if last is not None and now - last < _alert_cooldown():
             return False
         _alert_last[kind] = now
         return True

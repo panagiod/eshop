@@ -205,6 +205,21 @@ def test_attack_alert_cooldown(monkeypatch) -> None:
     assert "checkout" in delivered[1].lower()
 
 
+def test_first_attack_alert_works_when_clock_is_under_cooldown(monkeypatch) -> None:
+    """Fresh hosts (CI, Render cold start) have a small monotonic clock."""
+    monkeypatch.setenv("NOTIFY_EMAIL", "dimitrioupanagiotis@outlook.com")
+    monkeypatch.setenv("RESEND_API_KEY", "re_test_key")
+    monkeypatch.setenv("ATTACK_ALERT_COOLDOWN", "3600")
+    monkeypatch.setattr("src.notify.time.monotonic", lambda: 12.0)
+    delivered: list[str] = []
+    monkeypatch.setattr("src.notify._deliver_studio", lambda **kw: delivered.append(kw["subject"]))
+    from src.notify import notify_attack
+
+    assert notify_attack("login", "203.0.113.9") is True
+    assert notify_attack("login", "203.0.113.9") is False
+    assert delivered
+
+
 def test_health_reports_mail_flag(monkeypatch) -> None:
     monkeypatch.delenv("RESEND_API_KEY", raising=False)
     monkeypatch.delenv("SMTP_PASSWORD", raising=False)
