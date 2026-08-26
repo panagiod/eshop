@@ -5,6 +5,15 @@
 {% block content %}
 <h1 class="page-title">Orders</h1>
 
+{% if mail_status %}
+<div class="alert {% if mail_ok %}alert-ok{% else %}alert-error{% endif %}" role="alert">{{ mail_status }}</div>
+{% endif %}
+
+<form action="/admin/test-email" method="post" class="test-mail-form">
+  <p class="checkout-note">Order alerts go to {{ notify_email }}. Click to send a test (check Junk).</p>
+  <button type="submit" class="btn btn-ghost">Send test email</button>
+</form>
+
 <nav class="category-bar" aria-label="Order status">
   <a href="/admin/orders" class="category-chip {% if not active_status %}active{% endif %}">All ({{ counts.get('all', 0) }})</a>
   {% for key in statuses %}

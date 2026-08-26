@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import json
 from email.message import EmailMessage
+from io import BytesIO
+import urllib.error
 
 import pytest
 from fastapi.testclient import TestClient
@@ -201,3 +203,41 @@ def test_attack_alert_cooldown(monkeypatch) -> None:
     assert len(delivered) == 2
     assert "login" in delivered[0].lower()
     assert "checkout" in delivered[1].lower()
+
+
+def test_send_test_email_explains_missing_key(monkeypatch) -> None:
+    monkeypatch.delenv("RESEND_API_KEY", raising=False)
+    monkeypatch.delenv("SMTP_PASSWORD", raising=False)
+    from src.notify import send_test_email
+
+    ok, message = send_test_email()
+    assert ok is False
+    assert "RESEND_API_KEY" in message
+
+
+def test_send_test_email_explains_own_inbox_rule(monkeypatch) -> None:
+    monkeypatch.setenv("RESEND_API_KEY", "re_test_key")
+    monkeypatch.setenv("NOTIFY_EMAIL", "dimitrioupanagiotis@outlook.com")
+
+    class FakeError(urllib.error.HTTPError):
+        def __init__(self):
+            super().__init__(
+                url="https://api.resend.com/emails",
+                code=403,
+                msg="Forbidden",
+                hdrs=None,
+                fp=BytesIO(
+                    b'{"statusCode":403,"name":"validation_error",'
+                    b'"message":"You can only send testing emails to your own email address (me@example.com)."}'
+                ),
+            )
+
+    def boom(*args, **kwargs):
+        raise FakeError()
+
+    monkeypatch.setattr("src.notify.urllib.request.urlopen", boom)
+    from src.notify import send_test_email
+
+    ok, message = send_test_email()
+    assert ok is False
+    assert "signed up with" in message.lower() or "NOTIFY_EMAIL" in message

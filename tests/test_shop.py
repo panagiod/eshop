@@ -179,6 +179,7 @@ def test_admin_orders_and_stock() -> None:
     assert f">{order_id}<" in orders.text or f"/admin/orders/{order_id}" in orders.text
     assert 'data-label="Customer"' in orders.text
     assert "table-wrap" in orders.text
+    assert "Send test email" in orders.text
 
     save = client.post(
         f"/admin/orders/{order_id}",

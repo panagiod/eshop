@@ -217,8 +217,53 @@ def _send_via_resend(*, subject: str, body: str, to: str, reply_to: str = "") ->
             if resp.status >= 400:
                 raise RuntimeError(f"Resend HTTP {resp.status}: {raw[:300]!r}")
     except urllib.error.HTTPError as exc:
-        detail = exc.read()[:300]
-        raise RuntimeError(f"Resend HTTP {exc.code}: {detail!r}") from exc
+        detail = exc.read()[:500]
+        raise RuntimeError(_explain_mail_error(detail, exc.code)) from exc
+
+
+def _explain_mail_error(detail: bytes | str, status: int | None = None) -> str:
+    text = detail.decode("utf-8", errors="replace") if isinstance(detail, bytes) else detail
+    message = text
+    try:
+        parsed = json.loads(text)
+        message = str(parsed.get("message") or text)
+    except Exception:
+        pass
+    lower = message.lower()
+    if "only send testing emails to your own" in lower:
+        return (
+            "Resend will only deliver to the email you signed up with until you verify a domain. "
+            f"Sign up with {notify_email()}, or set NOTIFY_EMAIL on Render to that Resend account email."
+        )
+    if "api key is invalid" in lower or "invalid api key" in lower or status == 401:
+        return "Resend rejected the API key. Create a new key, paste RESEND_API_KEY on Render, Save, then Manual Deploy."
+    if "domain is not verified" in lower or "onboarding@resend.dev" in lower:
+        return (
+            "Resend needs the From address onboarding@resend.dev (already the default) "
+            "or a verified domain. Check RESEND_FROM on Render."
+        )
+    return message[:400]
+
+
+def send_test_email() -> tuple[bool, str]:
+    """Send a one-line test to NOTIFY_EMAIL. Used by studio admin."""
+    if not notify_email():
+        return False, "NOTIFY_EMAIL is empty."
+    if not mail_configured():
+        return False, "Add RESEND_API_KEY on Render → Environment, Save, then Manual Deploy."
+    try:
+        _deliver_studio(
+            subject=f"{shop_name()} test email",
+            body=(
+                f"This is a test from {shop_name()}.\n\n"
+                "If you received this, order alerts are working.\n"
+            ),
+            name="Studio test",
+        )
+    except Exception as exc:
+        logger.exception("Test email failed")
+        return False, str(exc)
+    return True, f"Sent a test to {notify_email()}. Check Inbox and Junk."
 
 
 def _deliver_studio(*, subject: str, body: str, reply_to: str = "", name: str = "") -> None:

@@ -19,7 +19,7 @@ from src.models import (
     ORDER_STATUSES,
     format_money,
 )
-from src.notify import record_failed_login
+from src.notify import record_failed_login, send_test_email
 from src.ratelimit import client_ip
 from src.store import (
     CATEGORIES,
@@ -140,8 +140,33 @@ def orders_page(request: Request, status: str | None = None) -> Any:
                 "orders": list_orders(status),
                 "counts": order_status_counts(),
                 "active_status": status,
+                "notify_email": os.environ.get("NOTIFY_EMAIL", "dimitrioupanagiotis@outlook.com"),
             },
         ),
+    )
+
+
+@router.post("/test-email")
+def test_email(request: Request) -> Any:
+    gate = require_admin(request)
+    if gate:
+        return gate
+    ok, message = send_test_email()
+    return templates.TemplateResponse(
+        request,
+        "admin_orders.html",
+        _ctx(
+            request,
+            {
+                "orders": list_orders(),
+                "counts": order_status_counts(),
+                "active_status": None,
+                "mail_ok": ok,
+                "mail_status": message,
+                "notify_email": os.environ.get("NOTIFY_EMAIL", "dimitrioupanagiotis@outlook.com"),
+            },
+        ),
+        status_code=200 if ok else 400,
     )
 
 
