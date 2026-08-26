@@ -31,6 +31,8 @@ services:
       # Example: Print Me Maybe <orders@printmemaybe.com>
       - key: RESEND_FROM
         sync: false
-      # Free instances have no persistent disk — SQLite lives in /tmp (resets on redeploy).
+      # Free instances have no persistent disk — SQLite lives in /tmp (wiped on sleep).
+      # To keep orders: upgrade to Starter, attach a disk at /var/data, set DATA_DIR=/var/data.
+      # See README “Keeping data (persistence)”.
       - key: DATA_DIR
         value: /tmp/eshop-data
