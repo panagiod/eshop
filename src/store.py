@@ -73,31 +73,86 @@ def cart_total_cents(lines: list[CartLine]) -> int:
 
 
 def get_order(order_id: int) -> Order | None:
-    """Fetch a placed order and its line items for the confirmation page."""
+    """Fetch a placed order and its line items."""
     with get_connection() as conn:
         row = conn.execute("SELECT * FROM orders WHERE id = ?", (order_id,)).fetchone()
         if not row:
             return None
+        return _order_from_row(conn, row)
 
-        item_rows = conn.execute(
-            """
-            SELECT oi.quantity, oi.unit_price_cents, p.name AS product_name
-            FROM order_items oi
-            JOIN products p ON p.id = oi.product_id
-            WHERE oi.order_id = ?
-            ORDER BY oi.id
-            """,
-            (order_id,),
+
+def list_all_products() -> list[Product]:
+    """Admin catalog including sold-out items."""
+    with get_connection() as conn:
+        rows = conn.execute("SELECT * FROM products ORDER BY category, name").fetchall()
+    return [Product.from_row(row) for row in rows]
+
+
+def set_product_stock(product_id: int, stock: int) -> None:
+    """Set remaining stock from the admin stock page."""
+    with get_connection() as conn:
+        conn.execute(
+            "UPDATE products SET stock = ? WHERE id = ?",
+            (max(0, stock), product_id),
+        )
+
+
+def list_orders(status: str | None = None) -> list[Order]:
+    """Newest-first order list for the studio admin."""
+    query = "SELECT * FROM orders"
+    params: tuple[object, ...] = ()
+    if status:
+        query += " WHERE status = ?"
+        params = (status,)
+    query += " ORDER BY id DESC"
+
+    with get_connection() as conn:
+        rows = conn.execute(query, params).fetchall()
+        return [_order_from_row(conn, row) for row in rows]
+
+
+def order_status_counts() -> dict[str, int]:
+    """Counts for the admin status filter chips."""
+    with get_connection() as conn:
+        rows = conn.execute(
+            "SELECT status, COUNT(*) AS n FROM orders GROUP BY status"
         ).fetchall()
+        total = conn.execute("SELECT COUNT(*) FROM orders").fetchone()[0]
+    counts = {row["status"]: int(row["n"]) for row in rows}
+    counts["all"] = int(total)
+    return counts
 
+
+def update_order_status(order_id: int, status: str) -> None:
+    with get_connection() as conn:
+        conn.execute("UPDATE orders SET status = ? WHERE id = ?", (status, order_id))
+
+
+def update_order_notes(order_id: int, notes: str) -> None:
+    with get_connection() as conn:
+        conn.execute("UPDATE orders SET notes = ? WHERE id = ?", (notes, order_id))
+
+
+def _order_from_row(conn, row) -> Order:
+    item_rows = conn.execute(
+        """
+        SELECT oi.quantity, oi.unit_price_cents, p.name AS product_name
+        FROM order_items oi
+        JOIN products p ON p.id = oi.product_id
+        WHERE oi.order_id = ?
+        ORDER BY oi.id
+        """,
+        (row["id"],),
+    ).fetchall()
     items = [
         OrderItem(
-            product_name=row["product_name"],
-            quantity=row["quantity"],
-            unit_price_cents=row["unit_price_cents"],
+            product_name=item["product_name"],
+            quantity=item["quantity"],
+            unit_price_cents=item["unit_price_cents"],
         )
-        for row in item_rows
+        for item in item_rows
     ]
+    keys = row.keys()
     return Order(
         id=row["id"],
         customer_name=row["customer_name"],
@@ -106,6 +161,8 @@ def get_order(order_id: int) -> Order | None:
         total_cents=row["total_cents"],
         created_at=row["created_at"],
         items=items,
+        status=row["status"] if "status" in keys else "new",
+        notes=row["notes"] if "notes" in keys else "",
     )
 
 
@@ -134,8 +191,8 @@ def place_order(
 
         cursor = conn.execute(
             """
-            INSERT INTO orders (customer_name, customer_email, shipping_address, total_cents)
-            VALUES (?, ?, ?, ?)
+            INSERT INTO orders (customer_name, customer_email, shipping_address, total_cents, status)
+            VALUES (?, ?, ?, ?, 'new')
             """,
             (customer_name, customer_email, shipping_address, total),
         )

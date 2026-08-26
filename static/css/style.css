@@ -511,7 +511,8 @@ img {
 }
 
 .checkout-form input,
-.checkout-form textarea {
+.checkout-form textarea,
+.checkout-form select {
   display: block;
   width: 100%;
   margin-top: 0.35rem;
@@ -632,7 +633,48 @@ img {
   margin: 0 0 0.35rem;
 }
 
+.nav-form {
+  margin: 0;
+}
+
+.nav-button {
+  background: none;
+  border: none;
+  font: inherit;
+  cursor: pointer;
+  padding: 0;
+}
+
+.admin-login-form {
+  max-width: 24rem;
+}
+
+.admin-table .muted {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.status-pill {
+  display: inline-block;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: #eeeae4;
+}
+
+.status-new { background: #e8f0fe; color: #1a4d8f; }
+.status-in_progress { background: #fff3e0; color: #a34a1c; }
+.status-ready { background: #e8f5e9; color: #2e7d32; }
+.status-shipped { background: #e8eaf6; color: #3949ab; }
+.status-cancelled { background: #fdecea; color: #8a1f11; }
+
 .empty-state {
+  color: var(--muted);
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 3rem;
+}
   color: var(--muted);
   grid-column: 1 / -1;
   text-align: center;
@@ -652,5 +694,10 @@ img {
   .cart-table th:nth-child(2),
   .cart-table td:nth-child(2) {
     display: none;
+  }
+
+  .admin-table th:nth-child(2),
+  .admin-table td:nth-child(2) {
+    display: table-cell;
   }
 }

@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+
+{% block title %}Orders — {{ shop_name }}{% endblock %}
+
+{% block content %}
+<h1 class="page-title">Orders</h1>
+
+<nav class="category-bar" aria-label="Order status">
+  <a href="/admin/orders" class="category-chip {% if not active_status %}active{% endif %}">All ({{ counts.get('all', 0) }})</a>
+  {% for key in statuses %}
+  <a href="/admin/orders?status={{ key }}" class="category-chip {% if active_status == key %}active{% endif %}">{{ status_labels[key] }} ({{ counts.get(key, 0) }})</a>
+  {% endfor %}
+</nav>
+
+{% if orders %}
+<table class="cart-table admin-table">
+  <thead>
+    <tr>
+      <th>#</th>
+      <th>When</th>
+      <th>Customer</th>
+      <th>Total</th>
+      <th>Status</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for order in orders %}
+    <tr>
+      <td><a href="/admin/orders/{{ order.id }}">{{ order.id }}</a></td>
+      <td>{{ order.created_at }}</td>
+      <td>{{ order.customer_name }}<br><span class="muted">{{ order.customer_email }}</span></td>
+      <td>{{ order.total_display }}</td>
+      <td><span class="status-pill status-{{ order.status }}">{{ order.status_label }}</span></td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p class="empty-state">No orders in this view yet.</p>
+{% endif %}
+{% endblock %}

@@ -6,6 +6,15 @@ from dataclasses import dataclass
 from typing import Any
 
 
+ORDER_STATUSES = ("new", "in_progress", "ready", "shipped", "cancelled")
+ORDER_STATUS_LABELS = {
+    "new": "New",
+    "in_progress": "In progress",
+    "ready": "Ready to ship",
+    "shipped": "Shipped",
+    "cancelled": "Cancelled",
+}
+
 FREE_SHIPPING_THRESHOLD_CENTS = 7500
 STANDARD_SHIPPING_CENTS = 599
 
@@ -102,6 +111,12 @@ class Order:
     total_cents: int
     created_at: str
     items: list[OrderItem]
+    status: str = "new"
+    notes: str = ""
+
+    @property
+    def status_label(self) -> str:
+        return ORDER_STATUS_LABELS.get(self.status, self.status)
 
     @property
     def subtotal_cents(self) -> int:

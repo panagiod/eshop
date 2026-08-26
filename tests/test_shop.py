@@ -2,12 +2,18 @@
 
 from __future__ import annotations
 
+import pytest
 from fastapi.testclient import TestClient
 
 from src.db import init_schema
 from src.main import app
 from src.models import STANDARD_SHIPPING_CENTS, order_total_cents, shipping_cents
 from src.seed import seed_products
+
+
+@pytest.fixture(autouse=True)
+def isolated_db(tmp_path, monkeypatch) -> None:
+    monkeypatch.setenv("DATA_DIR", str(tmp_path))
 
 
 def test_health_and_catalog() -> None:
@@ -113,3 +119,64 @@ def test_free_shipping_on_large_order() -> None:
     assert cart.status_code == 200
     assert "Free" in cart.text
     assert "Free shipping on orders over $75" not in cart.text
+
+
+def test_admin_requires_login() -> None:
+    init_schema()
+    seed_products()
+
+    client = TestClient(app)
+    listing = client.get("/admin/orders", follow_redirects=False)
+    assert listing.status_code == 303
+    assert listing.headers["location"] == "/admin/login"
+
+
+def test_admin_orders_and_stock() -> None:
+    init_schema()
+    seed_products()
+
+    client = TestClient(app)
+    products = client.get("/api/products").json()
+    nozzle = next(p for p in products if p["slug"] == "nozzle-case-a1")
+    client.post("/cart/add", data={"product_id": nozzle["id"], "quantity": 1})
+    checkout = client.post(
+        "/checkout",
+        data={
+            "customer_name": "Ada Lovelace",
+            "customer_email": "ada@example.com",
+            "shipping_address": "12 Engine St",
+        },
+    )
+    assert "Thank you" in checkout.text
+    order_id = checkout.text.split("#")[1].split("<")[0]
+
+    denied = client.post("/admin/login", data={"password": "wrong"}, follow_redirects=False)
+    assert denied.status_code == 401
+
+    login = client.post("/admin/login", data={"password": "printmemaybe"}, follow_redirects=False)
+    assert login.status_code == 303
+
+    orders = client.get("/admin/orders")
+    assert orders.status_code == 200
+    assert "Ada Lovelace" in orders.text
+    assert f">{order_id}<" in orders.text or f"/admin/orders/{order_id}" in orders.text
+
+    save = client.post(
+        f"/admin/orders/{order_id}",
+        data={"status": "in_progress", "notes": "DM received for custom name"},
+        follow_redirects=False,
+    )
+    assert save.status_code == 303
+
+    detail = client.get(f"/admin/orders/{order_id}")
+    assert detail.status_code == 200
+    assert "In progress" in detail.text
+    assert "DM received for custom name" in detail.text
+
+    stock_page = client.get("/admin/stock")
+    assert stock_page.status_code == 200
+    assert nozzle["name"] in stock_page.text
+
+    client.post(f"/admin/stock/{nozzle['id']}", data={"stock": "0"})
+    hidden = client.get("/api/products").json()
+    assert all(p["id"] != nozzle["id"] for p in hidden)

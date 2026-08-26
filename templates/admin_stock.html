@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+
+{% block title %}Stock — {{ shop_name }}{% endblock %}
+
+{% block content %}
+<h1 class="page-title">Stock</h1>
+<p class="hero-subtitle">3D prints and laser pieces. Zero stock hides an item from the shop.</p>
+
+<table class="cart-table admin-table">
+  <thead>
+    <tr>
+      <th>Product</th>
+      <th>Line</th>
+      <th>Price</th>
+      <th>Qty</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for product in products %}
+    <tr>
+      <td>{{ product.name }}</td>
+      <td>{{ product.category }}</td>
+      <td>{{ product.price_display }}</td>
+      <td>
+        <form action="/admin/stock/{{ product.id }}" method="post" class="qty-form">
+          <input type="number" name="stock" value="{{ product.stock }}" min="0" class="qty-input">
+          <button type="submit" class="btn btn-ghost btn-sm">Save</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

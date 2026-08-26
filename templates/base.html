@@ -17,6 +17,13 @@
         <span class="logo-text">{{ shop_name }}</span>
       </a>
       <nav class="nav-links">
+        {% if is_admin %}
+        <a href="/admin/orders" class="nav-link">Orders</a>
+        <a href="/admin/stock" class="nav-link">Stock</a>
+        <form action="/admin/logout" method="post" class="nav-form">
+          <button type="submit" class="nav-link nav-button">Log out</button>
+        </form>
+        {% else %}
         <a href="/" class="nav-link">Shop</a>
         <a href="/cart" class="nav-link cart-link">
           Cart
@@ -24,6 +31,7 @@
           <span class="cart-badge">{{ cart_count }}</span>
           {% endif %}
         </a>
+        {% endif %}
       </nav>
     </div>
   </header>
