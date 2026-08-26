@@ -227,7 +227,7 @@ def test_send_test_email_explains_missing_key(monkeypatch) -> None:
     ok, message = send_test_email()
     assert ok is False
     assert "RESEND_API_KEY" in message
-    assert "Replit" in message
+    assert "resend.com" in message
     assert "dashboard.render.com" in message
 
 

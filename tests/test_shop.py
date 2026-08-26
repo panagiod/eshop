@@ -183,6 +183,7 @@ def test_admin_orders_and_stock() -> None:
     assert "table-wrap" in orders.text
     assert "Send test email" in orders.text
     assert "dashboard.render.com" in orders.text
+    assert "resend.com" in orders.text
     assert "RESEND_API_KEY" in orders.text
 
     save = client.post(

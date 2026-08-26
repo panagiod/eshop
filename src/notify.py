@@ -74,12 +74,12 @@ def mail_configured() -> bool:
 
 
 def mail_not_configured_message() -> str:
-    """Explain that only the live Render process can send shop mail."""
+    """Explain Resend (mail) vs Render (host) so the key reaches this process."""
     return (
         "This running server has no RESEND_API_KEY, so it cannot send mail. "
-        "Keys added in Replit or on a laptop do not reach the live shop. "
-        "Open https://dashboard.render.com → print-me-maybe → Environment, "
-        "add RESEND_API_KEY, Save, then Manual Deploy."
+        "Creating a key on resend.com is only step 1. Paste that same key into "
+        "https://dashboard.render.com → print-me-maybe → Environment as "
+        "RESEND_API_KEY, Save Changes, then Manual Deploy."
     )
 
 
