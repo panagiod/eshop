@@ -22,6 +22,13 @@ def ensure_data_dir() -> None:
     data_dir().mkdir(parents=True, exist_ok=True)
 
 
+def product_images_dir() -> Path:
+    """Writable folder for photos uploaded from the admin stock page."""
+    path = data_dir() / "product-images"
+    path.mkdir(parents=True, exist_ok=True)
+    return path
+
+
 @contextmanager
 def get_connection() -> Generator[sqlite3.Connection, None, None]:
     """Yield a connection with row dict access and foreign keys enabled."""

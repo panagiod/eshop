@@ -164,25 +164,12 @@ CATALOG = [
 
 
 def seed_products() -> None:
-    """Insert new SKUs and refresh name, price, copy, and image without wiping orders.
+    """Insert missing catalog SKUs and refresh their name, price, copy, and image.
 
     Stock on existing rows is left as-is so admin inventory changes survive a deploy.
-    SKUs removed from the catalog are deleted (their order lines go with them).
+    Products added from the studio admin (slugs not in CATALOG) are left untouched.
     """
-    expected_slugs = {item["slug"] for item in CATALOG}
     with get_connection() as conn:
-        existing = {row["slug"] for row in conn.execute("SELECT slug FROM products")}
-        extras = existing - expected_slugs
-        for slug in extras:
-            conn.execute(
-                """
-                DELETE FROM order_items
-                WHERE product_id IN (SELECT id FROM products WHERE slug = ?)
-                """,
-                (slug,),
-            )
-            conn.execute("DELETE FROM products WHERE slug = ?", (slug,))
-
         conn.executemany(
             """
             INSERT INTO products (slug, name, description, price_cents, image_url, category, stock)

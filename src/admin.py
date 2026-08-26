@@ -8,7 +8,7 @@ import os
 from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter, Form, HTTPException, Request
+from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
 
@@ -19,14 +19,20 @@ from src.models import (
     format_money,
 )
 from src.store import (
+    CATEGORIES,
+    PLACEHOLDER_IMAGE,
+    create_product,
+    euros_to_cents,
     get_order,
     list_all_products,
     list_orders,
     order_status_counts,
     set_product_stock,
+    unique_slug,
     update_order_notes,
     update_order_status,
 )
+from src.uploads import save_product_image
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 router = APIRouter(prefix="/admin")
@@ -184,8 +190,70 @@ def stock_page(request: Request) -> Any:
     return templates.TemplateResponse(
         request,
         "admin_stock.html",
-        _ctx(request, {"products": list_all_products()}),
+        _ctx(
+            request,
+            {
+                "products": list_all_products(),
+                "categories": CATEGORIES,
+                "error": None,
+            },
+        ),
     )
+
+
+@router.post("/products")
+def product_create(
+    request: Request,
+    name: str = Form(...),
+    description: str = Form(...),
+    price: str = Form(...),
+    category: str = Form(...),
+    stock: int = Form(0),
+    image: UploadFile | None = File(None),
+) -> Any:
+    gate = require_admin(request)
+    if gate:
+        return gate
+
+    def error_page(message: str, status_code: int = 400):
+        return templates.TemplateResponse(
+            request,
+            "admin_stock.html",
+            _ctx(
+                request,
+                {
+                    "products": list_all_products(),
+                    "categories": CATEGORIES,
+                    "error": message,
+                    "form_name": name,
+                    "form_description": description,
+                    "form_price": price,
+                    "form_category": category,
+                    "form_stock": stock,
+                },
+            ),
+            status_code=status_code,
+        )
+
+    try:
+        price_cents = euros_to_cents(price)
+        slug = unique_slug(name)
+        image_url = PLACEHOLDER_IMAGE
+        if image is not None and image.filename:
+            image_url = save_product_image(slug, image)
+        create_product(
+            name=name,
+            description=description,
+            price_cents=price_cents,
+            category=category,
+            stock=stock,
+            image_url=image_url,
+            slug=slug,
+        )
+    except ValueError as exc:
+        return error_page(str(exc))
+
+    return RedirectResponse(url="/admin/stock", status_code=303)
 
 
 @router.post("/stock/{product_id}")

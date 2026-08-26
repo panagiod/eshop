@@ -4,7 +4,47 @@
 
 {% block content %}
 <h1 class="page-title">Stock</h1>
-<p class="hero-subtitle">3D prints and laser pieces. Zero stock hides an item from the shop.</p>
+<p class="hero-subtitle">Add a product, then set remaining quantity. Zero stock hides an item from the shop.</p>
+
+{% if error %}
+<div class="alert alert-error" role="alert">{{ error }}</div>
+{% endif %}
+
+<form action="/admin/products" method="post" enctype="multipart/form-data" class="checkout-form add-product-form">
+  <fieldset>
+    <legend>Add a product</legend>
+    <label>
+      Name
+      <input type="text" name="name" required value="{{ form_name or '' }}">
+    </label>
+    <label>
+      Description
+      <textarea name="description" rows="3" required>{{ form_description or '' }}</textarea>
+    </label>
+    <label>
+      Price (€)
+      <input type="text" name="price" inputmode="decimal" required placeholder="15.00" value="{{ form_price or '' }}">
+    </label>
+    <label>
+      Category
+      <select name="category" required>
+        {% for cat in categories %}
+        <option value="{{ cat }}" {% if form_category == cat %}selected{% endif %}>{{ cat }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>
+      Starting stock
+      <input type="number" name="stock" min="0" value="{{ form_stock | default(1) }}">
+    </label>
+    <label>
+      Photo
+      <input type="file" name="image" accept="image/jpeg,image/png,image/webp,image/gif">
+    </label>
+    <p class="checkout-note">JPG, PNG, WebP, or GIF up to 5 MB. If you skip a photo, a placeholder is used.</p>
+    <button type="submit" class="btn btn-primary">Add to shop</button>
+  </fieldset>
+</form>
 
 <table class="cart-table admin-table">
   <thead>

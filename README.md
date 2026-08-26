@@ -31,7 +31,7 @@ Listings for **3D prints** come from public [@print.me.maybe](https://www.instag
 
 Prices are in **EUR**. Shipping is €3.50 under €25, free at €25+. Custom names, colours, and files: order notes or Instagram DM.
 
-On boot, catalog copy and prices are upserted by slug. Admin stock changes are kept. SKUs removed from the seed file are deleted.
+On boot, catalog copy and prices for seed SKUs are upserted by slug. Admin stock changes and products added from `/admin/stock` are kept.
 
 ## Studio admin
 
@@ -39,7 +39,9 @@ After login at `/admin`:
 
 - **Orders** — list by status (New → In progress → Ready to ship → Shipped)
 - **Order detail** — customer, items, studio notes (Instagram custom requests). Cancelling restocks; reopening deducts stock again.
-- **Stock** — set remaining quantity; 0 hides the product from the shop
+- **Stock** — add a product (name, description, euro price, category, photo, starting quantity) and set remaining quantity. Zero hides the product from the shop.
+
+Photos uploaded in admin are stored under `DATA_DIR` (default `/tmp/eshop-data`). On Render Free that directory resets when the instance sleeps or redeploys, same as the SQLite catalog.
 
 Local password default: `printmemaybe`. On Render, copy `ADMIN_PASSWORD` from the service Environment tab (it is generated for you).
 

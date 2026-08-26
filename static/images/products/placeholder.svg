@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="800" viewBox="0 0 800 800" role="img" aria-label="Product photo placeholder">
+  <rect width="800" height="800" fill="#f0ebe3"/>
+  <rect x="48" y="48" width="704" height="704" fill="none" stroke="#c4b8a8" stroke-width="4"/>
+  <text x="400" y="380" text-anchor="middle" font-family="Georgia, serif" font-size="36" fill="#5c5348">Print Me Maybe</text>
+  <text x="400" y="430" text-anchor="middle" font-family="system-ui, sans-serif" font-size="22" fill="#8a8176">Photo coming soon</text>
+</svg>

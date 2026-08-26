@@ -185,6 +185,7 @@ def test_admin_orders_and_stock() -> None:
     stock_page = client.get("/admin/stock")
     assert stock_page.status_code == 200
     assert glasses["name"] in stock_page.text
+    assert "Add a product" in stock_page.text
 
     client.post(f"/admin/stock/{glasses['id']}", data={"stock": "0"})
     hidden = client.get("/api/products").json()
@@ -240,3 +241,84 @@ def test_seed_updates_prices_without_resetting_stock() -> None:
     product = next(p for p in list_all_products() if p.slug == "custom-cake-topper")
     assert product.price_cents == 1500
     assert product.stock == 7
+
+
+_PNG_1X1 = (
+    b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01"
+    b"\x08\x06\x00\x00\x00\x1f\x15\xc4\x89\x00\x00\x00\nIDATx\x9cc\x00\x01"
+    b"\x00\x00\x05\x00\x01\r\n-\xb4\x00\x00\x00\x00IEND\xaeB`\x82"
+)
+
+
+def test_admin_add_product_shows_in_shop() -> None:
+    init_schema()
+    seed_products()
+
+    client = TestClient(app)
+    guest = client.post(
+        "/admin/products",
+        data={
+            "name": "Studio Test Vase",
+            "description": "A custom 3D vase.",
+            "price": "12.50",
+            "category": "3D Prints",
+            "stock": "4",
+        },
+        follow_redirects=False,
+    )
+    assert guest.status_code == 303
+    assert guest.headers["location"] == "/admin/login"
+
+    client.post("/admin/login", data={"password": "printmemaybe"})
+    created = client.post(
+        "/admin/products",
+        data={
+            "name": "Studio Test Vase",
+            "description": "A custom 3D vase.",
+            "price": "12.50",
+            "category": "3D Prints",
+            "stock": "4",
+        },
+        files={"image": ("vase.png", _PNG_1X1, "image/png")},
+        follow_redirects=False,
+    )
+    assert created.status_code == 303
+    assert created.headers["location"] == "/admin/stock"
+
+    product = next(p for p in list_all_products() if p.slug == "studio-test-vase")
+    assert product.price_cents == 1250
+    assert product.stock == 4
+    assert product.image_url.startswith("/media/products/")
+
+    home = client.get("/")
+    assert "Studio Test Vase" in home.text
+    assert "€12.50" in home.text
+
+    photo = client.get(product.image_url)
+    assert photo.status_code == 200
+    assert photo.content[:8] == b"\x89PNG\r\n\x1a\n"
+
+    seed_products()
+    still_there = next(p for p in list_all_products() if p.slug == "studio-test-vase")
+    assert still_there.price_cents == 1250
+
+
+def test_admin_add_product_rejects_bad_price() -> None:
+    init_schema()
+    seed_products()
+
+    client = TestClient(app)
+    client.post("/admin/login", data={"password": "printmemaybe"})
+    bad = client.post(
+        "/admin/products",
+        data={
+            "name": "Broken Price",
+            "description": "Should not save.",
+            "price": "free",
+            "category": "Laser Engraving",
+            "stock": "1",
+        },
+    )
+    assert bad.status_code == 400
+    assert "price" in bad.text.lower()
+    assert all(p.slug != "broken-price" for p in list_all_products())

@@ -8,13 +8,13 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, Form, HTTPException, Request
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
 
 from src.admin import router as admin_router
-from src.db import init_schema
+from src.db import init_schema, product_images_dir
 from src.models import FREE_SHIPPING_THRESHOLD_CENTS, format_money, order_total_cents, shipping_cents
 from src.seed import seed_products
 from src.store import (
@@ -83,6 +83,19 @@ def checkout_totals(lines: list) -> dict[str, int]:
 @app.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok", "service": "eshop"}
+
+
+@app.get("/media/products/{filename}")
+def serve_product_image(filename: str) -> FileResponse:
+    """Serve a photo uploaded from the studio admin (stored under DATA_DIR)."""
+    safe = Path(filename).name
+    if not safe or safe != filename:
+        raise HTTPException(status_code=404, detail="Not found")
+    path = (product_images_dir() / safe).resolve()
+    root = product_images_dir().resolve()
+    if not path.is_file() or path.parent != root:
+        raise HTTPException(status_code=404, detail="Not found")
+    return FileResponse(path)
 
 
 @app.get("/", response_class=HTMLResponse)

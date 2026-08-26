@@ -2,10 +2,50 @@
 
 from __future__ import annotations
 
+import re
+import unicodedata
+from decimal import Decimal, InvalidOperation
 from typing import Iterable
 
 from src.db import get_connection
 from src.models import CartLine, Order, OrderItem, Product, order_total_cents
+
+CATEGORIES = ("3D Prints", "Laser Engraving")
+PLACEHOLDER_IMAGE = "/static/images/products/placeholder.svg"
+
+
+def slugify(name: str) -> str:
+    """URL slug from a product name."""
+    ascii_name = unicodedata.normalize("NFKD", name.strip()).encode("ascii", "ignore").decode("ascii")
+    slug = re.sub(r"[^a-z0-9]+", "-", ascii_name.lower()).strip("-")
+    return slug or "item"
+
+
+def euros_to_cents(raw: str) -> int:
+    """Parse a euro amount typed in the admin form."""
+    cleaned = raw.strip().replace("€", "").replace(" ", "").replace(",", ".")
+    try:
+        value = Decimal(cleaned)
+    except InvalidOperation as exc:
+        raise ValueError("Enter a price like 15 or 15.00") from exc
+    if value <= 0:
+        raise ValueError("Price must be greater than zero")
+    cents = int((value * 100).quantize(Decimal("1")))
+    if cents <= 0:
+        raise ValueError("Price must be greater than zero")
+    return cents
+
+
+def unique_slug(name: str) -> str:
+    """Return a slug that is not already in the products table."""
+    base = slugify(name)
+    with get_connection() as conn:
+        candidate = base
+        suffix = 2
+        while conn.execute("SELECT 1 FROM products WHERE slug = ?", (candidate,)).fetchone():
+            candidate = f"{base}-{suffix}"
+            suffix += 1
+    return candidate
 
 
 def list_products(category: str | None = None) -> list[Product]:
@@ -95,6 +135,48 @@ def set_product_stock(product_id: int, stock: int) -> None:
             "UPDATE products SET stock = ? WHERE id = ?",
             (max(0, stock), product_id),
         )
+
+
+def create_product(
+    *,
+    name: str,
+    description: str,
+    price_cents: int,
+    category: str,
+    stock: int,
+    image_url: str,
+    slug: str | None = None,
+) -> Product:
+    """Insert a product created from the studio admin."""
+    cleaned_name = name.strip()
+    if not cleaned_name:
+        raise ValueError("Name is required")
+    cleaned_description = description.strip()
+    if not cleaned_description:
+        raise ValueError("Description is required")
+    cleaned_category = category.strip()
+    if not cleaned_category:
+        raise ValueError("Category is required")
+    if price_cents <= 0:
+        raise ValueError("Price must be greater than zero")
+
+    product_slug = (slug or "").strip() or unique_slug(cleaned_name)
+    photo = image_url.strip() or PLACEHOLDER_IMAGE
+    qty = max(0, stock)
+
+    with get_connection() as conn:
+        cursor = conn.execute(
+            """
+            INSERT INTO products (slug, name, description, price_cents, image_url, category, stock)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (product_slug, cleaned_name, cleaned_description, price_cents, photo, cleaned_category, qty),
+        )
+        row = conn.execute(
+            "SELECT * FROM products WHERE id = ?",
+            (cursor.lastrowid,),
+        ).fetchone()
+    return Product.from_row(row)
 
 
 def list_orders(status: str | None = None) -> list[Order]:
