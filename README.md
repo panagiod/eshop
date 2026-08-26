@@ -34,12 +34,23 @@ Open http://localhost:8080
 
 Shipping is $5.99 under $75, free at $75+. Custom names/photos: DM after checkout.
 
+## Studio admin
+
+After login at `/admin`:
+
+- **Orders** — list by status (New → In progress → Ready to ship → Shipped)
+- **Order detail** — customer, items, studio notes (Instagram custom requests)
+- **Stock** — set remaining quantity; 0 hides the product from the shop
+
+Local password default: `printmemaybe`. On Render, copy `ADMIN_PASSWORD` from the service Environment tab (it is generated for you).
+
 ## Environment variables
 
 | Variable | Default | Purpose |
 |----------|---------|---------|
 | `PORT` | set by Render | HTTP listen port |
 | `SESSION_SECRET` | auto-generated on Render | Signs session cookies |
+| `ADMIN_PASSWORD` | `printmemaybe` locally | Studio admin login |
 | `SHOP_NAME` | `Print Me Maybe` | Store branding |
 | `DATA_DIR` | `/tmp/eshop-data` | SQLite directory |
 

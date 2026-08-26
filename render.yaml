@@ -15,6 +15,8 @@ services:
         value: "3.12.3"
       - key: SESSION_SECRET
         generateValue: true
+      - key: ADMIN_PASSWORD
+        generateValue: true
       - key: SHOP_NAME
         value: Print Me Maybe
       # Free instances have no persistent disk — SQLite lives in /tmp (resets on redeploy).

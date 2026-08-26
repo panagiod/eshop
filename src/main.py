@@ -13,6 +13,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
 
+from src.admin import router as admin_router
 from src.db import init_schema
 from src.models import format_money, order_total_cents, shipping_cents
 from src.seed import seed_products
@@ -44,6 +45,7 @@ app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
 
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 templates.env.globals["format_money"] = format_money
+app.include_router(admin_router)
 
 
 def get_cart(request: Request) -> dict[str, int]:
@@ -235,6 +237,7 @@ def order_detail(request: Request, order_id: int) -> Any:
             "order": order,
             "cart_count": cart_count(get_cart(request)),
             "shop_name": shop_name(),
+            "is_admin": False,
         },
     )
 

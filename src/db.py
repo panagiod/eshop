@@ -9,20 +9,24 @@ from pathlib import Path
 from typing import Generator
 
 # Default path works locally; Render sets DATA_DIR for a writable volume mount.
-DATA_DIR = Path(os.environ.get("DATA_DIR", "/tmp/eshop-data"))
-DB_PATH = DATA_DIR / "eshop.db"
+def data_dir() -> Path:
+    return Path(os.environ.get("DATA_DIR", "/tmp/eshop-data"))
+
+
+def db_path() -> Path:
+    return data_dir() / "eshop.db"
 
 
 def ensure_data_dir() -> None:
     """Create the data directory before opening SQLite (containers use read-only root)."""
-    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    data_dir().mkdir(parents=True, exist_ok=True)
 
 
 @contextmanager
 def get_connection() -> Generator[sqlite3.Connection, None, None]:
     """Yield a connection with row dict access and foreign keys enabled."""
     ensure_data_dir()
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(db_path())
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
     try:
@@ -54,6 +58,8 @@ def init_schema() -> None:
                 customer_email TEXT NOT NULL,
                 shipping_address TEXT NOT NULL,
                 total_cents INTEGER NOT NULL,
+                status TEXT NOT NULL DEFAULT 'new',
+                notes TEXT NOT NULL DEFAULT '',
                 created_at TEXT NOT NULL DEFAULT (datetime('now'))
             );
 
@@ -66,3 +72,8 @@ def init_schema() -> None:
             );
             """
         )
+        columns = {row[1] for row in conn.execute("PRAGMA table_info(orders)").fetchall()}
+        if "status" not in columns:
+            conn.execute("ALTER TABLE orders ADD COLUMN status TEXT NOT NULL DEFAULT 'new'")
+        if "notes" not in columns:
+            conn.execute("ALTER TABLE orders ADD COLUMN notes TEXT NOT NULL DEFAULT ''")

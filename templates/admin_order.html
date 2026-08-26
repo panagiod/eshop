@@ -3,15 +3,32 @@
 {% block title %}Order #{{ order.id }} — {{ shop_name }}{% endblock %}
 
 {% block content %}
+<p class="breadcrumb"><a href="/admin/orders">Orders</a> / #{{ order.id }}</p>
 <h1 class="page-title">Order #{{ order.id }}</h1>
-<p class="order-meta">Placed {{ order.created_at }} · {{ order.status_label }}</p>
+<p class="order-meta">Placed {{ order.created_at }} · <span class="status-pill status-{{ order.status }}">{{ order.status_label }}</span></p>
 
 <div class="checkout-layout">
   <section class="order-details">
-    <h2>Shipping</h2>
+    <h2>Customer</h2>
     <p class="order-shipping-name">{{ order.customer_name }}</p>
-    <p class="order-shipping-email">{{ order.customer_email }}</p>
+    <p class="order-shipping-email"><a href="mailto:{{ order.customer_email }}">{{ order.customer_email }}</a></p>
     <p class="order-shipping-address">{{ order.shipping_address }}</p>
+
+    <form action="/admin/orders/{{ order.id }}" method="post" class="checkout-form">
+      <label>
+        Status
+        <select name="status">
+          {% for key in statuses %}
+          <option value="{{ key }}" {% if order.status == key %}selected{% endif %}>{{ status_labels[key] }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label>
+        Studio notes (custom names, files, Instagram)
+        <textarea name="notes" rows="4">{{ order.notes }}</textarea>
+      </label>
+      <button type="submit" class="btn btn-primary">Save order</button>
+    </form>
   </section>
 
   <aside class="order-summary">
@@ -31,13 +48,7 @@
       </div>
       <div class="totals-row">
         <dt>Shipping</dt>
-        <dd>
-          {% if order.shipping_cents == 0 %}
-          <span class="free-badge">Free</span>
-          {% else %}
-          {{ format_money(order.shipping_cents) }}
-          {% endif %}
-        </dd>
+        <dd>{{ format_money(order.shipping_cents) if order.shipping_cents else "Free" }}</dd>
       </div>
       <div class="totals-row totals-row-total">
         <dt>Total</dt>
@@ -46,6 +57,4 @@
     </dl>
   </aside>
 </div>
-
-<a href="/" class="btn btn-primary">Back to shop</a>
 {% endblock %}
