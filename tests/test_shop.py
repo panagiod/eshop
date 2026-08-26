@@ -24,7 +24,9 @@ def test_health_and_catalog() -> None:
     client = TestClient(app)
     response = client.get("/health")
     assert response.status_code == 200
-    assert response.json()["status"] == "ok"
+    payload = response.json()
+    assert payload["status"] == "ok"
+    assert payload["mail"] is False
 
     home = client.get("/")
     assert home.status_code == 200
@@ -180,6 +182,8 @@ def test_admin_orders_and_stock() -> None:
     assert 'data-label="Customer"' in orders.text
     assert "table-wrap" in orders.text
     assert "Send test email" in orders.text
+    assert "dashboard.render.com" in orders.text
+    assert "RESEND_API_KEY" in orders.text
 
     save = client.post(
         f"/admin/orders/{order_id}",

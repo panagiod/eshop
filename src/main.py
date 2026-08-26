@@ -19,7 +19,7 @@ from src.models import FREE_SHIPPING_THRESHOLD_CENTS, format_money, order_total_
 from src.ratelimit import RateLimitMiddleware
 from src.security import SecurityHeadersMiddleware, require_production_secrets, session_https_only, session_secret
 from src.seed import seed_products
-from src.notify import schedule_order_email
+from src.notify import mail_configured, schedule_order_email
 from src.store import (
     build_cart_lines,
     cart_total_cents,
@@ -89,8 +89,9 @@ def checkout_totals(lines: list) -> dict[str, int]:
 
 
 @app.get("/health")
-def health() -> dict[str, str]:
-    return {"status": "ok", "service": "eshop"}
+def health() -> dict[str, str | bool]:
+    """Liveness plus whether THIS process can send mail (no secrets)."""
+    return {"status": "ok", "service": "eshop", "mail": mail_configured()}
 
 
 @app.get("/media/products/{filename}")

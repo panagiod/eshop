@@ -19,7 +19,7 @@ from src.models import (
     ORDER_STATUSES,
     format_money,
 )
-from src.notify import record_failed_login, send_test_email
+from src.notify import mail_configured, mail_not_configured_message, record_failed_login, send_test_email
 from src.ratelimit import client_ip
 from src.store import (
     CATEGORIES,
@@ -141,6 +141,8 @@ def orders_page(request: Request, status: str | None = None) -> Any:
                 "counts": order_status_counts(),
                 "active_status": status,
                 "notify_email": os.environ.get("NOTIFY_EMAIL", "dimitrioupanagiotis@outlook.com"),
+                "mail_ready": mail_configured(),
+                "mail_setup_hint": mail_not_configured_message(),
             },
         ),
     )
@@ -164,6 +166,8 @@ def test_email(request: Request) -> Any:
                 "mail_ok": ok,
                 "mail_status": message,
                 "notify_email": os.environ.get("NOTIFY_EMAIL", "dimitrioupanagiotis@outlook.com"),
+                "mail_ready": mail_configured(),
+                "mail_setup_hint": mail_not_configured_message(),
             },
         ),
         status_code=200 if ok else 400,

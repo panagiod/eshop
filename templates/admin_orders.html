@@ -7,10 +7,14 @@
 
 {% if mail_status %}
 <div class="alert {% if mail_ok %}alert-ok{% else %}alert-error{% endif %}" role="alert">{{ mail_status }}</div>
+{% elif not mail_ready %}
+<div class="alert alert-error" role="status">{{ mail_setup_hint }}</div>
+{% else %}
+<div class="alert alert-ok" role="status">Mail is on for this server. Alerts go to {{ notify_email }}.</div>
 {% endif %}
 
 <form action="/admin/test-email" method="post" class="test-mail-form">
-  <p class="checkout-note">Order alerts go to {{ notify_email }}. Click to send a test (check Junk).</p>
+  <p class="checkout-note">Order alerts go to {{ notify_email }}. Click to send a test (check Junk). Use dashboard.render.com, not Replit.</p>
   <button type="submit" class="btn btn-ghost">Send test email</button>
 </form>
 

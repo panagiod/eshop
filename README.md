@@ -55,8 +55,10 @@ New checkouts and security alerts email **dimitrioupanagiotis@outlook.com**. For
 
 1. Sign up at **https://resend.com** with your Outlook address (free)
 2. **API Keys** → **Create API Key** → copy it
-3. Render → `print-me-maybe` → **Environment** → add `RESEND_API_KEY` → **Save**
-4. **Manual Deploy**
+3. Open **https://dashboard.render.com** (not Replit) → `print-me-maybe` → **Environment** → add `RESEND_API_KEY` → **Save**
+4. **Manual Deploy** of the live service
+
+Replit, laptop, or GitHub secrets never reach `https://print-me-maybe.onrender.com`. Only Render Environment variables do. After deploy, `/health` shows `"mail": true` when this process can send.
 
 The first send uses Resend’s `beth.t@example.com` from-address to your Outlook inbox. That is not your Outlook password.
 

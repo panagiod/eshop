@@ -205,6 +205,20 @@ def test_attack_alert_cooldown(monkeypatch) -> None:
     assert "checkout" in delivered[1].lower()
 
 
+def test_health_reports_mail_flag(monkeypatch) -> None:
+    monkeypatch.delenv("RESEND_API_KEY", raising=False)
+    monkeypatch.delenv("SMTP_PASSWORD", raising=False)
+    from fastapi.testclient import TestClient
+
+    from src.main import app
+
+    client = TestClient(app)
+    assert client.get("/health").json()["mail"] is False
+    monkeypatch.setenv("RESEND_API_KEY", "re_test_key")
+    monkeypatch.setenv("NOTIFY_EMAIL", "dimitrioupanagiotis@outlook.com")
+    assert client.get("/health").json()["mail"] is True
+
+
 def test_send_test_email_explains_missing_key(monkeypatch) -> None:
     monkeypatch.delenv("RESEND_API_KEY", raising=False)
     monkeypatch.delenv("SMTP_PASSWORD", raising=False)
@@ -213,6 +227,8 @@ def test_send_test_email_explains_missing_key(monkeypatch) -> None:
     ok, message = send_test_email()
     assert ok is False
     assert "RESEND_API_KEY" in message
+    assert "Replit" in message
+    assert "dashboard.render.com" in message
 
 
 def test_send_test_email_explains_own_inbox_rule(monkeypatch) -> None:

@@ -73,6 +73,16 @@ def mail_configured() -> bool:
     return bool(notify_email() and (resend_api_key() or smtp_password()))
 
 
+def mail_not_configured_message() -> str:
+    """Explain that only the live Render process can send shop mail."""
+    return (
+        "This running server has no RESEND_API_KEY, so it cannot send mail. "
+        "Keys added in Replit or on a laptop do not reach the live shop. "
+        "Open https://dashboard.render.com → print-me-maybe → Environment, "
+        "add RESEND_API_KEY, Save, then Manual Deploy."
+    )
+
+
 def reset_alerts() -> None:
     """Clear attack-alert cooldowns (tests)."""
     with _alert_lock:
@@ -250,7 +260,7 @@ def send_test_email() -> tuple[bool, str]:
     if not notify_email():
         return False, "NOTIFY_EMAIL is empty."
     if not mail_configured():
-        return False, "Add RESEND_API_KEY on Render → Environment, Save, then Manual Deploy."
+        return False, mail_not_configured_message()
     try:
         _deliver_studio(
             subject=f"{shop_name()} test email",
