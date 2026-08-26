@@ -1,99 +1,47 @@
 # Harbor E-Shop
 
-A free-to-host demo e-commerce store built with **Python FastAPI**, **SQLite**, and a responsive storefront UI.
+A **free-to-host** demo store: Python FastAPI, SQLite, and a responsive storefront.
 
-Browse products, add to cart, and complete checkout — no payment processor required (demo mode).
+Browse products, add to cart, checkout — no payment processor, **$0/month** on Render's free instance.
 
-## Features
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/panagiod/eshop)
 
-| Feature | Details |
-|---------|---------|
-| Product catalog | 12 seeded products across 6 categories |
-| Shopping cart | Session-based, persists while you browse |
-| Checkout | Collects shipping details and creates orders |
-| API | `GET /api/products` JSON endpoint |
-| Container | Non-root Docker image ready for any host |
-| Kubernetes | Kustomize manifests under `deploy/` |
+That button is the only step to go live. Sign in with GitHub, keep the **Free** plan, click Apply. After the first deploy the shop is at `https://harbor-eshop.onrender.com` (Render may add a suffix).
 
-## Quick start (local)
+No credit card. No Kubernetes. No paid add-ons.
+
+> Free instances sleep after ~15 minutes idle (~1 minute wake). SQLite in `/tmp` resets on redeploy because the free plan has no disk.
+
+## Local run (optional)
 
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt -r requirements-dev.txt
-
-# Run the dev server
 uvicorn src.main:app --reload --port 8080
 ```
 
 Open http://localhost:8080
 
-## Free hosting on Render
+## What you get
 
-1. Push this repo to GitHub (`panagiod/eshop` or your fork).
-2. Sign up at [render.com](https://render.com) (free tier).
-3. **New → Blueprint** → connect your GitHub repo.
-4. Render reads `render.yaml` and deploys the Docker service.
-5. Your shop is live at `https://harbor-eshop.onrender.com` (or similar).
-
-> **Note:** Free tier spins down after inactivity (~50 s cold start). SQLite data resets on redeploy because free tier has no persistent disk.
-
-Set `SESSION_SECRET` in Render dashboard if you rotate secrets.
-
-## Create the GitHub repo
-
-From this directory:
-
-```bash
-git init
-git add .
-git commit -m "feat: harbor e-shop with free Render hosting"
-
-# Create repo under your account (requires gh CLI as panagiod)
-gh repo create panagiod/eshop --public --source=. --push
-```
-
-Enable **Settings → Actions → Workflow permissions → Read and write** so release tags can push to GHCR.
-
-## Release workflow
-
-Tag a version to build and push a container image:
-
-```bash
-git tag v0.1.0
-git push origin v0.1.0
-```
-
-Image: `ghcr.io/panagiod/eshop:v0.1.0`
-
-## Deploy on Kubernetes (optional)
-
-If you use the [panagiod/infra](https://github.com/panagiod/infra) platform:
-
-1. Add an Argo CD Application pointing at `deploy/overlays/staging` in this repo.
-2. Or copy manifests into `gitops/apps/eshop/` in the infra repo.
-
-See [application-project.md](https://github.com/panagiod/infra/blob/main/docs/applications/application-project.md) in infra.
+| Feature | Details |
+|---------|---------|
+| Product catalog | 12 seeded products across 6 categories |
+| Shopping cart | Session cookie while you browse |
+| Shipping | $5.99 under $75, free at $75+ |
+| Checkout | Shipping details + order confirmation |
+| Order lookup | `/order/{id}` after checkout |
+| Cost | $0 on Render Free (750 instance hours/month) |
 
 ## Environment variables
 
 | Variable | Default | Purpose |
 |----------|---------|---------|
-| `PORT` | `8080` | HTTP listen port |
-| `SESSION_SECRET` | dev placeholder | Signs session cookies — **set in production** |
-| `SHOP_NAME` | `Harbor` | Store branding in the UI |
-| `DATA_DIR` | `/tmp/eshop-data` | SQLite database directory |
-
-## Project structure
-
-```
-src/           FastAPI application
-templates/     Jinja2 HTML pages
-static/        CSS assets
-deploy/        Kubernetes Kustomize overlays
-tests/         Pytest smoke tests
-render.yaml    Render Blueprint for free hosting
-```
+| `PORT` | set by Render | HTTP listen port |
+| `SESSION_SECRET` | auto-generated on Render | Signs session cookies |
+| `SHOP_NAME` | `Harbor` | Store branding |
+| `DATA_DIR` | `/tmp/eshop-data` | SQLite directory |
 
 ## License
 
