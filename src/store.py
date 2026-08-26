@@ -124,7 +124,43 @@ def order_status_counts() -> dict[str, int]:
 
 
 def update_order_status(order_id: int, status: str) -> None:
+    """Set status and restock when cancelling (or deduct again when reopening)."""
     with get_connection() as conn:
+        conn.execute("BEGIN IMMEDIATE")
+        row = conn.execute("SELECT status FROM orders WHERE id = ?", (order_id,)).fetchone()
+        if not row:
+            raise ValueError("Order not found")
+
+        current = row["status"]
+        if current == status:
+            return
+
+        items = conn.execute(
+            "SELECT product_id, quantity FROM order_items WHERE order_id = ?",
+            (order_id,),
+        ).fetchall()
+
+        if current != "cancelled" and status == "cancelled":
+            for item in items:
+                conn.execute(
+                    "UPDATE products SET stock = stock + ? WHERE id = ?",
+                    (item["quantity"], item["product_id"]),
+                )
+        elif current == "cancelled" and status != "cancelled":
+            for item in items:
+                product = conn.execute(
+                    "SELECT name, stock FROM products WHERE id = ?",
+                    (item["product_id"],),
+                ).fetchone()
+                if not product or product["stock"] < item["quantity"]:
+                    name = product["name"] if product else "item"
+                    raise ValueError(f"Insufficient stock to reopen for {name}")
+            for item in items:
+                conn.execute(
+                    "UPDATE products SET stock = stock - ? WHERE id = ?",
+                    (item["quantity"], item["product_id"]),
+                )
+
         conn.execute("UPDATE orders SET status = ? WHERE id = ?", (status, order_id))
 
 
