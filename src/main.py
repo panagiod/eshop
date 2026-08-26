@@ -17,6 +17,7 @@ from src.admin import router as admin_router
 from src.db import init_schema, product_images_dir
 from src.models import FREE_SHIPPING_THRESHOLD_CENTS, format_money, order_total_cents, shipping_cents
 from src.seed import seed_products
+from src.notify import notify_new_order
 from src.store import (
     build_cart_lines,
     cart_total_cents,
@@ -226,6 +227,9 @@ def checkout_submit(
         )
 
     save_cart(request, {})
+    order = get_order(order_id)
+    if order:
+        notify_new_order(order)
     return templates.TemplateResponse(
         request,
         "order_complete.html",
