@@ -1,8 +1,9 @@
 # Render Blueprint — $0/month web service (free instance).
+# Live hostname: https://print-me-maybe.onrender.com
 # One-click: https://render.com/deploy?repo=https://github.com/panagiod/eshop
 services:
   - type: web
-    name: harbor-eshop
+    name: print-me-maybe
     runtime: python
     plan: free
     region: frankfurt
@@ -15,7 +16,7 @@ services:
       - key: SESSION_SECRET
         generateValue: true
       - key: SHOP_NAME
-        value: Harbor
+        value: Print Me Maybe
       # Free instances have no persistent disk — SQLite lives in /tmp (resets on redeploy).
       - key: DATA_DIR
         value: /tmp/eshop-data
