@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import json
 import logging
 import os
 import smtplib
 import ssl
+import urllib.parse
+import urllib.request
 from email.message import EmailMessage
 
 from src.models import Order, format_money
@@ -15,6 +18,7 @@ logger = logging.getLogger(__name__)
 DEFAULT_NOTIFY_EMAIL = "dimitrioupanagiotis@outlook.com"
 DEFAULT_SMTP_HOST = "smtp-mail.outlook.com"
 DEFAULT_SHOP_URL = "https://print-me-maybe.onrender.com"
+FORMSUBMIT_URL = "https://formsubmit.co/ajax/"
 
 
 def notify_email() -> str:
@@ -46,18 +50,24 @@ def shop_url() -> str:
 
 
 def mail_configured() -> bool:
-    """True when we have a destination inbox and SMTP login."""
-    return bool(notify_email() and smtp_user() and smtp_password())
+    """True when we have an inbox to notify. No mail password is required."""
+    return bool(notify_email())
 
 
-def build_order_email(order: Order) -> EmailMessage:
-    """Plain-text studio alert with Reply-To set to the customer."""
-    shop = os.environ.get("SHOP_NAME", "Print Me Maybe")
+def shop_name() -> str:
+    return os.environ.get("SHOP_NAME", "Print Me Maybe")
+
+
+def order_email_subject(order: Order) -> str:
+    return f"New {shop_name()} order #{order.id} ({order.total_display})"
+
+
+def order_email_body(order: Order) -> str:
     shipping = (
         "Free" if order.shipping_cents == 0 else format_money(order.shipping_cents)
     )
     lines = [
-        f"New order #{order.id} — {shop}",
+        f"New order #{order.id} — {shop_name()}",
         "",
         "Customer",
         f"Name: {order.customer_name}",
@@ -82,19 +92,24 @@ def build_order_email(order: Order) -> EmailMessage:
             "",
             "Open in studio:",
             f"{shop_url()}/admin/orders/{order.id}",
+            "",
         ]
     )
+    return "\n".join(lines)
 
+
+def build_order_email(order: Order) -> EmailMessage:
+    """Plain-text studio alert with Reply-To set to the customer."""
     msg = EmailMessage()
-    msg["Subject"] = f"New {shop} order #{order.id} ({order.total_display})"
-    msg["From"] = smtp_user()
+    msg["Subject"] = order_email_subject(order)
+    msg["From"] = smtp_user() or notify_email()
     msg["To"] = notify_email()
     msg["Reply-To"] = order.customer_email
-    msg.set_content("\n".join(lines) + "\n")
+    msg.set_content(order_email_body(order))
     return msg
 
 
-def _send_message(msg: EmailMessage) -> None:
+def _send_via_smtp(msg: EmailMessage) -> None:
     host = smtp_host()
     port = smtp_port()
     user = smtp_user()
@@ -111,16 +126,44 @@ def _send_message(msg: EmailMessage) -> None:
         smtp.send_message(msg)
 
 
+def _send_via_formsubmit(order: Order) -> None:
+    """Forward the order through FormSubmit — no inbox password needed."""
+    payload = {
+        "_subject": order_email_subject(order),
+        "_template": "box",
+        "_captcha": "false",
+        "_replyto": order.customer_email,
+        "name": order.customer_name,
+        "email": order.customer_email,
+        "message": order_email_body(order),
+    }
+    to = urllib.parse.quote(notify_email(), safe="")
+    req = urllib.request.Request(
+        f"{FORMSUBMIT_URL}{to}",
+        data=json.dumps(payload).encode("utf-8"),
+        headers={
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+            "User-Agent": "PrintMeMaybeShop/1.0",
+        },
+        method="POST",
+    )
+    with urllib.request.urlopen(req, timeout=15) as resp:
+        raw = resp.read()
+        if resp.status >= 400:
+            raise RuntimeError(f"FormSubmit HTTP {resp.status}: {raw[:200]!r}")
+
+
 def notify_new_order(order: Order) -> bool:
     """Email the studio. Never raises — checkout must still succeed."""
     if not mail_configured():
-        logger.warning(
-            "Order #%s placed; email skipped (set SMTP_PASSWORD on Render).",
-            order.id,
-        )
+        logger.warning("Order #%s placed; email skipped (NOTIFY_EMAIL is empty).", order.id)
         return False
     try:
-        _send_message(build_order_email(order))
+        if smtp_password():
+            _send_via_smtp(build_order_email(order))
+        else:
+            _send_via_formsubmit(order)
     except Exception:
         logger.exception("Could not email order #%s", order.id)
         return False

@@ -47,15 +47,9 @@ Local password default: `printmemaybe`. On Render, copy `ADMIN_PASSWORD` from th
 
 ## Order emails
 
-New checkouts email **dimitrioupanagiotis@outlook.com**. Reply to that message to write the customer.
+New checkouts email **dimitrioupanagiotis@outlook.com**. No mail password is required.
 
-Mail only goes out when `SMTP_PASSWORD` is set. On Render:
-
-1. Open the `print-me-maybe` service → **Environment**
-2. Add `SMTP_PASSWORD` with an [Outlook app password](https://account.microsoft.com/security) (Microsoft account → Security → two-step verification → App passwords). Do not use your normal Outlook login password.
-3. **Manual Deploy** so the live shop picks it up
-
-If Outlook blocks SMTP, use a Gmail app password instead and set `SMTP_HOST=smtp.gmail.com`, `SMTP_USER` to that Gmail address, and `SMTP_PASSWORD` to the 16-character app password.
+The first live order sends a one-time **confirmation** message from FormSubmit. Open it and click the confirm link. After that, each new order arrives in Outlook. Reply to write the customer.
 
 Checkout still succeeds if mail fails.
 
@@ -69,10 +63,7 @@ Checkout still succeeds if mail fails.
 | `SHOP_NAME` | `Print Me Maybe` | Store branding |
 | `SHOP_URL` | `https://print-me-maybe.onrender.com` | Links in order emails |
 | `NOTIFY_EMAIL` | `dimitrioupanagiotis@outlook.com` | Inbox for new-order alerts |
-| `SMTP_HOST` | `smtp-mail.outlook.com` | Outgoing mail server |
-| `SMTP_PORT` | `587` | `587` STARTTLS or `465` SSL |
-| `SMTP_USER` | same as `NOTIFY_EMAIL` | SMTP login |
-| `SMTP_PASSWORD` | empty (mail skipped) | Outlook/Gmail app password |
+| `SMTP_PASSWORD` | empty | Optional. If set, send via Outlook/Gmail SMTP instead |
 | `DATA_DIR` | `/tmp/eshop-data` | SQLite directory |
 
 ## License

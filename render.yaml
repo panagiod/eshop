@@ -23,15 +23,6 @@ services:
         value: https://print-me-maybe.onrender.com
       - key: NOTIFY_EMAIL
         value: dimitrioupanagiotis@outlook.com
-      - key: SMTP_HOST
-        value: smtp-mail.outlook.com
-      - key: SMTP_PORT
-        value: "587"
-      - key: SMTP_USER
-        value: dimitrioupanagiotis@outlook.com
-      # Outlook app password — add this in Render → Environment (never commit it).
-      - key: SMTP_PASSWORD
-        sync: false
       # Free instances have no persistent disk — SQLite lives in /tmp (resets on redeploy).
       - key: DATA_DIR
         value: /tmp/eshop-data
