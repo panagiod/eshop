@@ -33,6 +33,8 @@ def test_health_and_catalog() -> None:
     assert "print.me.maybe" in home.text
     assert "lasercraft.27" in home.text
     assert "Made in Cyprus" in home.text
+    assert 'name="viewport"' in home.text
+    assert "viewport-fit=cover" in home.text
     assert "Floral Glasses Case" in home.text
     assert "€4.00" in home.text
     assert "Custom Cake Topper" in home.text
@@ -94,6 +96,9 @@ def test_add_to_cart_and_checkout_with_shipping() -> None:
     assert cart.status_code == 200
     assert glasses["name"] in cart.text
     assert "Free shipping on orders over €25.00" in cart.text
+    assert 'data-label="Product"' in cart.text
+    assert 'data-label="Qty"' in cart.text
+    assert "table-wrap" in cart.text
 
     checkout = client.post(
         "/checkout",
@@ -169,6 +174,8 @@ def test_admin_orders_and_stock() -> None:
     assert orders.status_code == 200
     assert "Ada Lovelace" in orders.text
     assert f">{order_id}<" in orders.text or f"/admin/orders/{order_id}" in orders.text
+    assert 'data-label="Customer"' in orders.text
+    assert "table-wrap" in orders.text
 
     save = client.post(
         f"/admin/orders/{order_id}",
@@ -186,6 +193,7 @@ def test_admin_orders_and_stock() -> None:
     assert stock_page.status_code == 200
     assert glasses["name"] in stock_page.text
     assert "Add a product" in stock_page.text
+    assert 'data-label="Qty"' in stock_page.text
 
     client.post(f"/admin/stock/{glasses['id']}", data={"stock": "0"})
     hidden = client.get("/api/products").json()

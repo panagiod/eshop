@@ -46,6 +46,7 @@
   </fieldset>
 </form>
 
+<div class="table-wrap">
 <table class="cart-table admin-table">
   <thead>
     <tr>
@@ -58,10 +59,10 @@
   <tbody>
     {% for product in products %}
     <tr>
-      <td>{{ product.name }}</td>
-      <td>{{ product.category }}</td>
-      <td>{{ product.price_display }}</td>
-      <td>
+      <td data-label="Product">{{ product.name }}</td>
+      <td data-label="Line">{{ product.category }}</td>
+      <td data-label="Price">{{ product.price_display }}</td>
+      <td data-label="Qty">
         <form action="/admin/stock/{{ product.id }}" method="post" class="qty-form">
           <input type="number" name="stock" value="{{ product.stock }}" min="0" class="qty-input">
           <button type="submit" class="btn btn-ghost btn-sm">Save</button>
@@ -71,4 +72,5 @@
     {% endfor %}
   </tbody>
 </table>
+</div>
 {% endblock %}

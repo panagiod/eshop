@@ -6,6 +6,7 @@
 <h1 class="page-title">Your cart</h1>
 
 {% if lines %}
+<div class="table-wrap">
 <table class="cart-table">
   <thead>
     <tr>
@@ -19,20 +20,20 @@
   <tbody>
     {% for line in lines %}
     <tr>
-      <td class="cart-product">
+      <td class="cart-product" data-label="Product">
         <img src="{{ line.product.image_url }}" alt="" class="cart-thumb">
         <a href="/product/{{ line.product.slug }}">{{ line.product.name }}</a>
       </td>
-      <td>{{ line.product.price_display }}</td>
-      <td>
+      <td data-label="Price">{{ line.product.price_display }}</td>
+      <td data-label="Qty">
         <form action="/cart/update" method="post" class="qty-form">
           <input type="hidden" name="product_id" value="{{ line.product.id }}">
           <input type="number" name="quantity" value="{{ line.quantity }}" min="0" max="{{ line.product.stock }}" class="qty-input">
           <button type="submit" class="btn btn-ghost btn-sm">Update</button>
         </form>
       </td>
-      <td>{{ line.line_total_display }}</td>
-      <td>
+      <td data-label="Total">{{ line.line_total_display }}</td>
+      <td data-label="">
         <form action="/cart/update" method="post">
           <input type="hidden" name="product_id" value="{{ line.product.id }}">
           <input type="hidden" name="quantity" value="0">
@@ -43,6 +44,7 @@
     {% endfor %}
   </tbody>
 </table>
+</div>
 
 <div class="cart-summary">
   <dl class="totals-breakdown">
