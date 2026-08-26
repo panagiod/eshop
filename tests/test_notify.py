@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from email.message import EmailMessage
 
 import pytest
@@ -35,11 +36,39 @@ def _sample_order() -> Order:
     )
 
 
-def test_mail_skipped_without_password(monkeypatch) -> None:
-    monkeypatch.delenv("SMTP_PASSWORD", raising=False)
-    monkeypatch.setenv("NOTIFY_EMAIL", "dimitrioupanagiotis@outlook.com")
+def test_mail_skipped_without_inbox(monkeypatch) -> None:
+    monkeypatch.setenv("NOTIFY_EMAIL", "")
     assert mail_configured() is False
     assert notify_new_order(_sample_order()) is False
+
+
+def test_notify_sends_without_smtp_password(monkeypatch) -> None:
+    monkeypatch.delenv("SMTP_PASSWORD", raising=False)
+    monkeypatch.setenv("NOTIFY_EMAIL", "dimitrioupanagiotis@outlook.com")
+    captured: list[dict] = []
+
+    class FakeResp:
+        status = 200
+
+        def read(self) -> bytes:
+            return b'{"success":"true"}'
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+    def fake_urlopen(req, timeout=None):
+        captured.append(json.loads(req.data.decode()))
+        return FakeResp()
+
+    monkeypatch.setattr("src.notify.urllib.request.urlopen", fake_urlopen)
+    assert mail_configured() is True
+    assert notify_new_order(_sample_order()) is True
+    assert len(captured) == 1
+    assert "Floral Glasses Case" in captured[0]["message"]
+    assert captured[0]["_replyto"] == "ada@example.com"
 
 
 def test_build_order_email_includes_customer_and_totals() -> None:
@@ -144,3 +173,23 @@ def test_checkout_emails_studio(monkeypatch) -> None:
     assert checkout.status_code == 200
     assert "Thank you" in checkout.text
     assert len(mailed) == 1
+
+
+def test_attack_alert_cooldown(monkeypatch) -> None:
+    monkeypatch.setenv("NOTIFY_EMAIL", "dimitrioupanagiotis@outlook.com")
+    monkeypatch.setenv("ATTACK_ALERT_COOLDOWN", "3600")
+    delivered: list[str] = []
+
+    def fake_deliver(**kwargs):
+        delivered.append(kwargs["subject"])
+
+    monkeypatch.setattr("src.notify._deliver_studio", fake_deliver)
+    from src.notify import notify_attack
+
+    assert notify_attack("login", "203.0.113.9") is True
+    assert notify_attack("login", "203.0.113.9") is False
+    assert notify_attack("checkout", "203.0.113.9") is True
+    assert notify_attack("ip", "203.0.113.9") is False
+    assert len(delivered) == 2
+    assert "login" in delivered[0].lower()
+    assert "checkout" in delivered[1].lower()

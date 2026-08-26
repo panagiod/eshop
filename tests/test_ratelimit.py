@@ -29,23 +29,32 @@ def test_health_is_not_rate_limited(monkeypatch) -> None:
 def test_admin_login_blocks_after_too_many_tries(monkeypatch) -> None:
     monkeypatch.setenv("RATE_LIMIT_LOGIN", "3")
     monkeypatch.setenv("RATE_LIMIT_LOGIN_WINDOW", "900")
+    monkeypatch.setenv("ATTACK_ALERT_COOLDOWN", "3600")
+    alerts: list[str] = []
+    monkeypatch.setattr("src.notify._deliver_studio", lambda **kw: alerts.append(kw["subject"]))
     init_schema()
     seed_products()
     client = TestClient(app)
     for _ in range(3):
         denied = client.post("/admin/login", data={"password": "wrong"})
         assert denied.status_code == 401
+    assert len(alerts) == 1
+    assert "login" in alerts[0].lower()
     blocked = client.post("/admin/login", data={"password": "wrong"})
     assert blocked.status_code == 429
     assert blocked.headers.get("retry-after")
     assert "Too many attempts" in blocked.text
     still_blocked = client.post("/admin/login", data={"password": "printmemaybe"})
     assert still_blocked.status_code == 429
+    assert len(alerts) == 1
 
 
 def test_checkout_blocks_repeat_orders(monkeypatch) -> None:
     monkeypatch.setenv("RATE_LIMIT_CHECKOUT", "2")
     monkeypatch.setenv("RATE_LIMIT_CHECKOUT_WINDOW", "3600")
+    monkeypatch.setenv("ATTACK_ALERT_COOLDOWN", "3600")
+    alerts: list[str] = []
+    monkeypatch.setattr("src.notify._deliver_studio", lambda **kw: alerts.append(kw["subject"]))
     init_schema()
     seed_products()
     client = TestClient(app)
@@ -67,10 +76,13 @@ def test_checkout_blocks_repeat_orders(monkeypatch) -> None:
     assert place() == 200
     assert place() == 200
     assert place() == 429
+    assert any("blocked checkout" in subject.lower() for subject in alerts)
 
 
-def test_page_flood_returns_429(monkeypatch) -> None:
+def test_page_flood_returns_429_without_security_email(monkeypatch) -> None:
     monkeypatch.setenv("RATE_LIMIT_IP", "5")
+    alerts: list[str] = []
+    monkeypatch.setattr("src.notify._deliver_studio", lambda **kw: alerts.append(kw["subject"]))
     init_schema()
     seed_products()
     client = TestClient(app)
@@ -78,3 +90,4 @@ def test_page_flood_returns_429(monkeypatch) -> None:
     assert codes[:5] == [200, 200, 200, 200, 200]
     assert codes[5] == 429
     assert client.get("/").headers.get("retry-after")
+    assert alerts == []

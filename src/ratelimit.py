@@ -140,5 +140,9 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         for bucket, max_hits, window in _rules(request.method, path):
             allowed, retry_after = limiter.hit(f"{bucket}:{ip}", max_hits, window)
             if not allowed:
+                if bucket in {"login", "checkout"}:
+                    from src.notify import notify_attack
+
+                    notify_attack(bucket, ip)
                 return rate_limited_response(request, retry_after)
         return await call_next(request)

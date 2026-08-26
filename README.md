@@ -51,15 +51,9 @@ On Render, `SESSION_SECRET` and `ADMIN_PASSWORD` are required (the service will 
 
 ## Order emails
 
-New checkouts email **dimitrioupanagiotis@outlook.com**. Reply to that message to write the customer.
+New checkouts email **dimitrioupanagiotis@outlook.com**. No mail password is required. The first live message is a FormSubmit **confirm this email** link — click it once. After that, orders and security alerts arrive in Outlook.
 
-Mail only goes out when `SMTP_PASSWORD` is set. On Render:
-
-1. Open the `print-me-maybe` service → **Environment**
-2. Add `SMTP_PASSWORD` with an [Outlook app password](https://account.microsoft.com/security) (Microsoft account → Security → two-step verification → App passwords). Do not use your normal Outlook login password.
-3. **Manual Deploy** so the live shop picks it up
-
-If Outlook blocks SMTP, use a Gmail app password instead and set `SMTP_HOST=smtp.gmail.com`, `SMTP_USER` to that Gmail address, and `SMTP_PASSWORD` to the 16-character app password.
+Blocked studio logins and checkout floods also email you, at most once per hour per type, so a scan cannot fill the inbox. If that was you typing the password wrong, wait a few minutes and try again.
 
 Checkout still succeeds if mail fails.
 
@@ -73,11 +67,9 @@ Checkout still succeeds if mail fails.
 | `SESSION_HTTPS_ONLY` | on when `RENDER` is set | Secure session cookie |
 | `SHOP_NAME` | `Print Me Maybe` | Store branding |
 | `SHOP_URL` | `https://print-me-maybe.onrender.com` | Links in order emails |
-| `NOTIFY_EMAIL` | `dimitrioupanagiotis@outlook.com` | Inbox for new-order alerts |
-| `SMTP_HOST` | `smtp-mail.outlook.com` | Outgoing mail server |
-| `SMTP_PORT` | `587` | `587` STARTTLS or `465` SSL |
-| `SMTP_USER` | same as `NOTIFY_EMAIL` | SMTP login |
-| `SMTP_PASSWORD` | empty (mail skipped) | Outlook/Gmail app password |
+| `NOTIFY_EMAIL` | `dimitrioupanagiotis@outlook.com` | Inbox for new-order and attack alerts |
+| `SMTP_PASSWORD` | empty | Optional. If set, send via SMTP and email the customer too |
+| `ATTACK_ALERT_COOLDOWN` | `3600` | Seconds between similar security emails |
 | `DATA_DIR` | `/tmp/eshop-data` | SQLite directory |
 
 ## License

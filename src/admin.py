@@ -19,6 +19,7 @@ from src.models import (
     ORDER_STATUSES,
     format_money,
 )
+from src.notify import record_failed_login
 from src.ratelimit import client_ip
 from src.store import (
     CATEGORIES,
@@ -95,6 +96,7 @@ def login_submit(request: Request, password: str = Form(...)) -> Any:
         request.session["is_admin"] = True
         return RedirectResponse(url="/admin/orders", status_code=303)
     logger.warning("Failed admin login from %s", client_ip(request))
+    record_failed_login(client_ip(request))
     return templates.TemplateResponse(
         request,
         "admin_login.html",
