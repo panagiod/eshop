@@ -23,6 +23,7 @@ This repository is a FastAPI + SQLite storefront with a session cart, demo check
 - [Order emails](#order-emails)
 - [Security](#security)
 - [Data on Render Free](#data-on-render-free)
+- [Keeping data (persistence)](#keeping-data-persistence)
 - [License](#license)
 
 ## What this project is
@@ -236,7 +237,30 @@ Rate limits (in-memory, per instance, by IP):
 
 ## Data on Render Free
 
-There is **no persistent disk**. `DATA_DIR=/tmp/eshop-data` is wiped when the instance sleeps or redeploys: orders, stock, and uploaded photos reset to the seed catalog. For lasting data you need a paid disk or an external database — not configured here.
+There is **no persistent disk** on Free. `DATA_DIR=/tmp/eshop-data` is wiped when the instance sleeps or redeploys: orders, stock, and uploaded photos reset to the seed catalog.
+
+That is expected on $0 hosting. The shop still works; it just forgets.
+
+## Keeping data (persistence)
+
+The app already stores everything in one folder: SQLite (`eshop.db`) and studio photos (`product-images/`). Persistence means that folder must sit on a disk Render does **not** wipe.
+
+**Do this (smallest change, no rewrite):**
+
+1. Open [dashboard.render.com](https://dashboard.render.com) → **print-me-maybe**.
+2. Change the instance from **Free** to **Starter** (paid; disks are not allowed on Free). Starter also stays awake (no 15‑minute sleep).
+3. **Disks** → add a disk:
+   - Name: `eshop-data`
+   - Mount path: `/var/data` (not `/tmp`)
+   - Size: **1 GB** is enough
+4. **Environment** → set `DATA_DIR` to `/var/data` (replace `/tmp/eshop-data`).
+5. **Save** → deploy. Confirm `/health` still returns ok, then place a test order and add a product photo. Redeploy once: the order and photo should still be there.
+
+Do **not** point `DATA_DIR` at `/tmp`. Do **not** try to persist on Free — Render will still erase it.
+
+**Skip for now:** moving to Postgres or S3. That is a larger rewrite. A disk keeps the current SQLite shop. Free Render Postgres also expires after 30 days, so it is a poor fit.
+
+After a disk is attached, take occasional downloads of `/var/data/eshop.db` (Render shell on paid plans, or copy from studio) so a disk failure is not the only copy of orders.
 
 ## License
 
