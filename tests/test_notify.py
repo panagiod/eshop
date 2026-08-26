@@ -163,7 +163,7 @@ def test_checkout_emails_studio(monkeypatch) -> None:
         assert order.customer_email == "ada@example.com"
         return True
 
-    monkeypatch.setattr("src.main.notify_new_order", fake_notify)
+    monkeypatch.setattr("src.main.schedule_order_email", fake_notify)
 
     client = TestClient(app)
     products = client.get("/api/products").json()

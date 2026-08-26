@@ -19,7 +19,7 @@ from src.models import FREE_SHIPPING_THRESHOLD_CENTS, format_money, order_total_
 from src.ratelimit import RateLimitMiddleware
 from src.security import SecurityHeadersMiddleware, require_production_secrets, session_https_only, session_secret
 from src.seed import seed_products
-from src.notify import notify_new_order
+from src.notify import schedule_order_email
 from src.store import (
     build_cart_lines,
     cart_total_cents,
@@ -259,7 +259,7 @@ def checkout_submit(
     save_cart(request, {})
     order = get_order(order_id)
     if order:
-        notify_new_order(order)
+        schedule_order_email(order)
     return templates.TemplateResponse(
         request,
         "order_complete.html",

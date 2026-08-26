@@ -11,7 +11,7 @@ import time
 import urllib.error
 import urllib.request
 from email.message import EmailMessage
-from threading import Lock
+from threading import Lock, Thread
 
 from src.models import Order, format_money
 
@@ -212,7 +212,7 @@ def _send_via_resend(*, subject: str, body: str, to: str, reply_to: str = "") ->
         method="POST",
     )
     try:
-        with urllib.request.urlopen(req, timeout=15) as resp:
+        with urllib.request.urlopen(req, timeout=8) as resp:
             raw = resp.read()
             if resp.status >= 400:
                 raise RuntimeError(f"Resend HTTP {resp.status}: {raw[:300]!r}")
@@ -262,6 +262,14 @@ def notify_new_order(order: Order) -> bool:
             logger.exception("Could not email customer for order #%s", order.id)
     logger.info("Order #%s emailed to %s", order.id, notify_email())
     return True
+
+
+def schedule_order_email(order: Order) -> None:
+    """Email after checkout without blocking the thank-you page."""
+    if os.environ.get("NOTIFY_SYNC", "").lower() in {"1", "true", "yes"}:
+        notify_new_order(order)
+        return
+    Thread(target=notify_new_order, args=(order,), daemon=True, name="order-email").start()
 
 
 def _attack_copy(kind: str, ip: str) -> tuple[str, str]:

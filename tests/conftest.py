@@ -9,7 +9,8 @@ from src.ratelimit import limiter
 
 
 @pytest.fixture(autouse=True)
-def reset_rate_limits() -> None:
+def reset_rate_limits(monkeypatch) -> None:
+    monkeypatch.setenv("NOTIFY_SYNC", "1")
     limiter.reset()
     reset_alerts()
     yield
