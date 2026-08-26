@@ -113,7 +113,10 @@ def test_add_to_cart_and_checkout_with_shipping() -> None:
     assert f"€{total / 100:.2f}" in checkout.text
 
     order_id = checkout.text.split("#")[1].split("<")[0]
-    detail = client.get(f"/order/{order_id}")
+    token = checkout.text.split('href="/order/')[1].split('"')[0]
+    assert token != order_id
+    assert client.get(f"/order/{order_id}").status_code == 404
+    detail = client.get(f"/order/{token}")
     assert detail.status_code == 200
     assert glasses["name"] in detail.text
     assert f"€{shipping / 100:.2f}" in detail.text or "Free" in detail.text

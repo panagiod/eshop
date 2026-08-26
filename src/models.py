@@ -113,6 +113,7 @@ class Order:
     items: list[OrderItem]
     status: str = "new"
     notes: str = ""
+    lookup_token: str = ""
 
     @property
     def status_label(self) -> str:

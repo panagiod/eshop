@@ -124,5 +124,36 @@ def notify_new_order(order: Order) -> bool:
     except Exception:
         logger.exception("Could not email order #%s", order.id)
         return False
+    try:
+        _send_message(build_customer_email(order))
+    except Exception:
+        logger.exception("Could not email customer for order #%s", order.id)
     logger.info("Order #%s emailed to %s", order.id, notify_email())
     return True
+
+
+def build_customer_email(order: Order) -> EmailMessage:
+    """Confirmation to the buyer with the unguessable order link."""
+    shop = os.environ.get("SHOP_NAME", "Print Me Maybe")
+    link = (
+        f"{shop_url()}/order/{order.lookup_token}"
+        if order.lookup_token
+        else shop_url()
+    )
+    lines = [
+        f"Thank you for your {shop} order #{order.id}.",
+        "",
+        f"Total: {order.total_display}",
+        "",
+        "View your order:",
+        link,
+        "",
+        "No payment was collected at checkout. For custom names, photos, or files, reply or DM Instagram.",
+        "",
+    ]
+    msg = EmailMessage()
+    msg["Subject"] = f"{shop} order #{order.id}"
+    msg["From"] = smtp_user()
+    msg["To"] = order.customer_email
+    msg.set_content("\n".join(lines))
+    return msg

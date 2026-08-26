@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import hmac
+import logging
 import os
 from pathlib import Path
 from typing import Any
@@ -18,6 +19,7 @@ from src.models import (
     ORDER_STATUSES,
     format_money,
 )
+from src.ratelimit import client_ip
 from src.store import (
     CATEGORIES,
     PLACEHOLDER_IMAGE,
@@ -39,6 +41,7 @@ router = APIRouter(prefix="/admin")
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 templates.env.globals["format_money"] = format_money
 templates.env.globals["free_shipping_threshold"] = format_money(FREE_SHIPPING_THRESHOLD_CENTS)
+logger = logging.getLogger(__name__)
 
 
 def shop_name() -> str:
@@ -91,6 +94,7 @@ def login_submit(request: Request, password: str = Form(...)) -> Any:
     if expected and hmac.compare_digest(given_digest, expected_digest):
         request.session["is_admin"] = True
         return RedirectResponse(url="/admin/orders", status_code=303)
+    logger.warning("Failed admin login from %s", client_ip(request))
     return templates.TemplateResponse(
         request,
         "admin_login.html",

@@ -17,12 +17,15 @@ from src.admin import router as admin_router
 from src.db import init_schema, product_images_dir
 from src.models import FREE_SHIPPING_THRESHOLD_CENTS, format_money, order_total_cents, shipping_cents
 from src.ratelimit import RateLimitMiddleware
+from src.security import SecurityHeadersMiddleware, require_production_secrets, session_https_only, session_secret
 from src.seed import seed_products
 from src.notify import notify_new_order
 from src.store import (
     build_cart_lines,
     cart_total_cents,
     get_order,
+    get_order_by_token,
+    get_product,
     get_product_by_slug,
     list_categories,
     list_products,
@@ -30,20 +33,22 @@ from src.store import (
 )
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-SECRET_KEY = os.environ.get("SESSION_SECRET", "dev-only-change-me-in-production")
+SECRET_KEY = session_secret()
 
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     """Prepare database and demo catalog on container boot."""
+    require_production_secrets()
     init_schema()
     seed_products()
     yield
 
 
 app = FastAPI(title="Print Me Maybe", version="0.2.0", lifespan=lifespan)
-app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY, max_age=60 * 60 * 24 * 7)
+app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY, max_age=60 * 60 * 24 * 7, same_site="lax", https_only=session_https_only())
 app.add_middleware(RateLimitMiddleware)
+app.add_middleware(SecurityHeadersMiddleware)
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
 
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
@@ -98,7 +103,22 @@ def serve_product_image(filename: str) -> FileResponse:
     root = product_images_dir().resolve()
     if not path.is_file() or path.parent != root:
         raise HTTPException(status_code=404, detail="Not found")
-    return FileResponse(path)
+    return FileResponse(
+        path,
+        media_type=_image_media_type(safe),
+        headers={"X-Content-Type-Options": "nosniff", "Content-Disposition": "inline"},
+    )
+
+
+def _image_media_type(filename: str) -> str:
+    ext = Path(filename).suffix.lower()
+    return {
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".png": "image/png",
+        ".webp": "image/webp",
+        ".gif": "image/gif",
+    }.get(ext, "application/octet-stream")
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -137,9 +157,13 @@ def product_detail(request: Request, slug: str) -> Any:
 
 @app.post("/cart/add")
 def cart_add(request: Request, product_id: int = Form(...), quantity: int = Form(1)) -> RedirectResponse:
+    product = get_product(product_id)
+    if not product or product.stock <= 0:
+        return RedirectResponse(url="/", status_code=303)
     cart = get_cart(request)
     key = str(product_id)
-    cart[key] = cart.get(key, 0) + max(1, quantity)
+    wanted = cart.get(key, 0) + max(1, min(quantity, 99))
+    cart[key] = min(wanted, product.stock)
     save_cart(request, cart)
     return RedirectResponse(url="/cart", status_code=303)
 
@@ -151,7 +175,11 @@ def cart_update(request: Request, product_id: int = Form(...), quantity: int = F
     if quantity <= 0:
         cart.pop(key, None)
     else:
-        cart[key] = quantity
+        product = get_product(product_id)
+        if not product or product.stock <= 0:
+            cart.pop(key, None)
+        else:
+            cart[key] = min(max(quantity, 0), product.stock)
     save_cart(request, cart)
     return RedirectResponse(url="/cart", status_code=303)
 
@@ -237,6 +265,7 @@ def checkout_submit(
         "order_complete.html",
         {
             "order_id": order_id,
+            "lookup_token": order.lookup_token if order else "",
             "cart_count": 0,
             "shop_name": shop_name(),
             **totals,
@@ -244,9 +273,9 @@ def checkout_submit(
     )
 
 
-@app.get("/order/{order_id}", response_class=HTMLResponse)
-def order_detail(request: Request, order_id: int) -> Any:
-    order = get_order(order_id)
+@app.get("/order/{token}", response_class=HTMLResponse)
+def order_detail(request: Request, token: str) -> Any:
+    order = get_order_by_token(token)
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
 

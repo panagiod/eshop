@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+import secrets
 import unicodedata
 from decimal import Decimal, InvalidOperation
 from typing import Iterable
@@ -71,6 +72,13 @@ def list_categories() -> list[str]:
     return [row["category"] for row in rows]
 
 
+def get_product(product_id: int) -> Product | None:
+    """Look up a product by id for cart updates."""
+    with get_connection() as conn:
+        row = conn.execute("SELECT * FROM products WHERE id = ?", (product_id,)).fetchone()
+    return Product.from_row(row) if row else None
+
+
 def get_product_by_slug(slug: str) -> Product | None:
     """Look up a single product for the detail page."""
     with get_connection() as conn:
@@ -113,9 +121,24 @@ def cart_total_cents(lines: list[CartLine]) -> int:
 
 
 def get_order(order_id: int) -> Order | None:
-    """Fetch a placed order and its line items."""
+    """Fetch a placed order and its line items by studio id."""
     with get_connection() as conn:
         row = conn.execute("SELECT * FROM orders WHERE id = ?", (order_id,)).fetchone()
+        if not row:
+            return None
+        return _order_from_row(conn, row)
+
+
+def get_order_by_token(token: str) -> Order | None:
+    """Fetch an order by the unguessable customer lookup token."""
+    cleaned = (token or "").strip()
+    if len(cleaned) < 16:
+        return None
+    with get_connection() as conn:
+        row = conn.execute(
+            "SELECT * FROM orders WHERE lookup_token = ?",
+            (cleaned,),
+        ).fetchone()
         if not row:
             return None
         return _order_from_row(conn, row)
@@ -281,6 +304,7 @@ def _order_from_row(conn, row) -> Order:
         items=items,
         status=row["status"] if "status" in keys else "new",
         notes=row["notes"] if "notes" in keys else "",
+        lookup_token=row["lookup_token"] if "lookup_token" in keys and row["lookup_token"] else "",
     )
 
 
@@ -307,12 +331,15 @@ def place_order(
             if not row or row["stock"] < line.quantity:
                 raise ValueError(f"Insufficient stock for {line.product.name}")
 
+        token = secrets.token_urlsafe(16)
         cursor = conn.execute(
             """
-            INSERT INTO orders (customer_name, customer_email, shipping_address, total_cents, status)
-            VALUES (?, ?, ?, ?, 'new')
+            INSERT INTO orders (
+                customer_name, customer_email, shipping_address, total_cents, status, lookup_token
+            )
+            VALUES (?, ?, ?, ?, 'new', ?)
             """,
-            (customer_name, customer_email, shipping_address, total),
+            (customer_name, customer_email, shipping_address, total, token),
         )
         order_id = cursor.lastrowid
 

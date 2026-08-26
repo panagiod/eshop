@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import secrets
 import sqlite3
 from contextlib import contextmanager
 from pathlib import Path
@@ -67,6 +68,7 @@ def init_schema() -> None:
                 total_cents INTEGER NOT NULL,
                 status TEXT NOT NULL DEFAULT 'new',
                 notes TEXT NOT NULL DEFAULT '',
+                lookup_token TEXT UNIQUE,
                 created_at TEXT NOT NULL DEFAULT (datetime('now'))
             );
 
@@ -84,3 +86,17 @@ def init_schema() -> None:
             conn.execute("ALTER TABLE orders ADD COLUMN status TEXT NOT NULL DEFAULT 'new'")
         if "notes" not in columns:
             conn.execute("ALTER TABLE orders ADD COLUMN notes TEXT NOT NULL DEFAULT ''")
+        if "lookup_token" not in columns:
+            conn.execute("ALTER TABLE orders ADD COLUMN lookup_token TEXT")
+        missing = conn.execute(
+            "SELECT id FROM orders WHERE lookup_token IS NULL OR lookup_token = ''"
+        ).fetchall()
+        if missing:
+            for row in missing:
+                conn.execute(
+                    "UPDATE orders SET lookup_token = ? WHERE id = ?",
+                    (secrets.token_urlsafe(16), row["id"]),
+                )
+        conn.execute(
+            "CREATE UNIQUE INDEX IF NOT EXISTS idx_orders_lookup_token ON orders(lookup_token)"
+        )

@@ -31,6 +31,7 @@ def _sample_order() -> Order:
             OrderItem(product_name="Floral Glasses Case", quantity=1, unit_price_cents=400),
         ],
         status="new",
+        lookup_token="customer-order-token-12",
     )
 
 
@@ -90,9 +91,12 @@ def test_notify_sends_via_smtp(monkeypatch) -> None:
 
     monkeypatch.setattr("src.notify.smtplib.SMTP", FakeSMTP)
     assert notify_new_order(_sample_order()) is True
-    assert len(sent) == 1
+    assert len(sent) == 2
     assert sent[0]["To"] == "dimitrioupanagiotis@outlook.com"
     assert "Floral Glasses Case" in sent[0].get_content()
+    assert sent[1]["To"] == "ada@example.com"
+    assert "/order/customer-order-token-12" in sent[1].get_content()
+    assert "/admin/" not in sent[1].get_content()
 
 
 def test_notify_failure_does_not_raise(monkeypatch) -> None:

@@ -47,6 +47,8 @@ Local password default: `printmemaybe`. On Render, copy `ADMIN_PASSWORD` from th
 
 Studio login allows 5 tries per 15 minutes per visitor. Checkout allows 12 orders per hour. Extra traffic gets HTTP 429.
 
+On Render, `SESSION_SECRET` and `ADMIN_PASSWORD` are required (the service will not start without them). Session cookies are HTTPS-only. Customer order pages use an unguessable token, not `/order/1`. Cart quantity cannot exceed stock.
+
 ## Order emails
 
 New checkouts email **dimitrioupanagiotis@outlook.com**. Reply to that message to write the customer.
@@ -67,7 +69,8 @@ Checkout still succeeds if mail fails.
 |----------|---------|---------|
 | `PORT` | set by Render | HTTP listen port |
 | `SESSION_SECRET` | auto-generated on Render | Signs session cookies |
-| `ADMIN_PASSWORD` | `printmemaybe` locally | Studio admin login |
+| `ADMIN_PASSWORD` | `printmemaybe` locally; required on Render | Studio admin login |
+| `SESSION_HTTPS_ONLY` | on when `RENDER` is set | Secure session cookie |
 | `SHOP_NAME` | `Print Me Maybe` | Store branding |
 | `SHOP_URL` | `https://print-me-maybe.onrender.com` | Links in order emails |
 | `NOTIFY_EMAIL` | `dimitrioupanagiotis@outlook.com` | Inbox for new-order alerts |
