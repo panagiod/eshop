@@ -27,6 +27,8 @@ def test_health_and_catalog() -> None:
     payload = response.json()
     assert payload["status"] == "ok"
     assert payload["mail"] is False
+    assert payload.get("payments") is False
+    assert payload.get("persistent") is False
 
     home = client.get("/")
     assert home.status_code == 200
@@ -182,7 +184,7 @@ def test_admin_orders_and_stock() -> None:
     assert 'data-label="Customer"' in orders.text
     assert "table-wrap" in orders.text
     assert "Send test email" in orders.text
-    assert "dashboard.render.com" in orders.text
+    assert "/etc/eshop.env" in orders.text
     assert "resend.com" in orders.text
     assert "RESEND_API_KEY" in orders.text
 

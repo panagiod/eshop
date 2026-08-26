@@ -8,6 +8,10 @@ venv/
 eshop-data/
 *.db
 
+# Secrets
+.env
+/etc/eshop.env
+
 # IDE and OS
 .idea/
 .vscode/

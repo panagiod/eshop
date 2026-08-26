@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_NOTIFY_EMAIL = "dimitrioupanagiotis@outlook.com"
 DEFAULT_SMTP_HOST = "smtp-mail.outlook.com"
-DEFAULT_SHOP_URL = "https://print-me-maybe.onrender.com"
+DEFAULT_SHOP_URL = "http://127.0.0.1:8000"
 RESEND_API_URL = "https://api.resend.com/emails"
 DEFAULT_RESEND_FROM = "Print Me Maybe <beth.t@example.com>"
 
@@ -74,12 +74,11 @@ def mail_configured() -> bool:
 
 
 def mail_not_configured_message() -> str:
-    """Explain Resend (mail) vs Render (host) so the key reaches this process."""
+    """Explain how to put the Resend key on this Hetzner server."""
     return (
         "This running server has no RESEND_API_KEY, so it cannot send mail. "
-        "Creating a key on resend.com is only step 1. Paste that same key into "
-        "https://dashboard.render.com → print-me-maybe → Environment as "
-        "RESEND_API_KEY, Save Changes, then Manual Deploy."
+        "Create a key on resend.com, then set RESEND_API_KEY in /etc/eshop.env "
+        "and run: systemctl restart eshop"
     )
 
 
@@ -93,10 +92,10 @@ def mail_domain_unverified_message() -> str:
     """Resend 403: From domain is not verified. Outlook.com cannot be used as From."""
     return (
         "Resend blocked the send: the From domain is not verified. "
-        "You cannot use print-me-maybe.onrender.com, outlook.com, or "
+        "You cannot use onrender.com, outlook.com, or "
         "beth.t@example.com. Buy a domain, add it at https://resend.com/domains, "
-        "wait until Verified, then on Render set RESEND_FROM to "
-        'Print Me Maybe <orders@your-domain> and Manual Deploy. See README “Order emails”.'
+        "wait until Verified, then set RESEND_FROM in /etc/eshop.env to "
+        'Print Me Maybe <orders@your-domain> and run: systemctl restart eshop. See README “Order emails”.'
     )
 
 
@@ -148,6 +147,11 @@ def order_email_body(order: Order) -> str:
         lines.append(
             f"- {item.product_name} × {item.quantity} — {item.line_total_display}"
         )
+    pay_line = (
+        "Card payment received (Stripe)."
+        if order.paid
+        else "No payment was collected at checkout."
+    )
     lines.extend(
         [
             "",
@@ -155,7 +159,7 @@ def order_email_body(order: Order) -> str:
             f"Shipping: {shipping}",
             f"Total: {order.total_display}",
             "",
-            "No payment was collected at checkout.",
+            pay_line,
             "",
             "Open in studio:",
             f"{shop_url()}/admin/orders/{order.id}",
@@ -191,7 +195,9 @@ def build_customer_email(order: Order) -> EmailMessage:
         "View your order:",
         link,
         "",
-        "No payment was collected at checkout. For custom names, photos, or files, reply or DM Instagram.",
+        "Card payment received. For custom names, photos, or files, reply or DM Instagram."
+        if order.paid
+        else "No payment was collected at checkout. For custom names, photos, or files, reply or DM Instagram.",
         "",
     ]
     msg = EmailMessage()
@@ -302,7 +308,7 @@ def _deliver_studio(*, subject: str, body: str, reply_to: str = "", name: str = 
         _send_via_smtp(msg)
         return
     if not resend_api_key():
-        raise RuntimeError("Set RESEND_API_KEY on Render to send mail")
+        raise RuntimeError("Set RESEND_API_KEY in /etc/eshop.env to send mail")
     _send_via_resend(subject=subject, body=body, to=notify_email(), reply_to=reply_to)
 
 
@@ -310,7 +316,7 @@ def notify_new_order(order: Order) -> bool:
     """Email the studio. Never raises — checkout must still succeed."""
     if not mail_configured():
         logger.warning(
-            "Order #%s placed; email skipped (set RESEND_API_KEY on Render).",
+            "Order #%s placed; email skipped (set RESEND_API_KEY in /etc/eshop.env).",
             order.id,
         )
         return False

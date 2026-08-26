@@ -14,14 +14,16 @@ from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
 
 from src.admin import router as admin_router
-from src.db import init_schema, product_images_dir
+from src.db import data_persistent, init_schema, product_images_dir
 from src.models import FREE_SHIPPING_THRESHOLD_CENTS, format_money, order_total_cents, shipping_cents
 from src.ratelimit import RateLimitMiddleware
 from src.security import SecurityHeadersMiddleware, require_production_secrets, session_https_only, session_secret
 from src.seed import seed_products
 from src.notify import mail_configured, schedule_order_email
+from src.payments import create_checkout_session, paid_session, payments_configured
 from src.store import (
     build_cart_lines,
+    cart_from_snapshot,
     cart_total_cents,
     get_order,
     get_order_by_token,
@@ -29,7 +31,9 @@ from src.store import (
     get_product_by_slug,
     list_categories,
     list_products,
+    order_id_for_stripe_session,
     place_order,
+    remember_stripe_session,
 )
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -91,7 +95,13 @@ def checkout_totals(lines: list) -> dict[str, int]:
 @app.get("/health")
 def health() -> dict[str, str | bool]:
     """Liveness plus whether THIS process can send mail (no secrets)."""
-    return {"status": "ok", "service": "eshop", "mail": mail_configured()}
+    return {
+        "status": "ok",
+        "service": "eshop",
+        "mail": mail_configured(),
+        "payments": payments_configured(),
+        "persistent": data_persistent(),
+    }
 
 
 @app.get("/media/products/{filename}")
@@ -217,6 +227,7 @@ def checkout_page(request: Request) -> Any:
             "lines": lines,
             "cart_count": cart_count(cart),
             "shop_name": shop_name(),
+            "payments_on": payments_configured(),
             **totals,
         },
     )
@@ -236,11 +247,41 @@ def checkout_submit(
 
     totals = checkout_totals(lines)
 
+    name = customer_name.strip()
+    email = customer_email.strip()
+    address = shipping_address.strip()
+
+    if payments_configured():
+        try:
+            pay_url = create_checkout_session(
+                lines=lines,
+                total_cents=totals["total_cents"],
+                customer_name=name,
+                customer_email=email,
+                shipping_address=address,
+                origin=str(request.base_url).rstrip("/"),
+            )
+        except Exception as exc:
+            return templates.TemplateResponse(
+                request,
+                "checkout.html",
+                {
+                    "lines": lines,
+                    "cart_count": cart_count(cart),
+                    "shop_name": shop_name(),
+                    "payments_on": True,
+                    "error": str(exc),
+                    **totals,
+                },
+                status_code=400,
+            )
+        return RedirectResponse(url=pay_url, status_code=303)
+
     try:
         order_id = place_order(
-            customer_name=customer_name.strip(),
-            customer_email=customer_email.strip(),
-            shipping_address=shipping_address.strip(),
+            customer_name=name,
+            customer_email=email,
+            shipping_address=address,
             lines=lines,
         )
     except ValueError as exc:
@@ -251,6 +292,7 @@ def checkout_submit(
                 "lines": lines,
                 "cart_count": cart_count(cart),
                 "shop_name": shop_name(),
+                "payments_on": False,
                 "error": str(exc),
                 **totals,
             },
@@ -269,6 +311,86 @@ def checkout_submit(
             "lookup_token": order.lookup_token if order else "",
             "cart_count": 0,
             "shop_name": shop_name(),
+            "paid": False,
+            **totals,
+        },
+    )
+
+
+@app.get("/pay/success", response_class=HTMLResponse)
+def pay_success(request: Request, session_id: str = "") -> Any:
+    """Stripe returns here after a successful card payment."""
+    if not payments_configured():
+        return RedirectResponse(url="/checkout", status_code=303)
+    existing = order_id_for_stripe_session(session_id)
+    if existing:
+        order = get_order(existing)
+        if not order:
+            raise HTTPException(status_code=404, detail="Order not found")
+        totals = {
+            "subtotal_cents": order.subtotal_cents,
+            "shipping_cents": order.shipping_cents,
+            "total_cents": order.total_cents,
+        }
+        return templates.TemplateResponse(
+            request,
+            "order_complete.html",
+            {
+                "order_id": order.id,
+                "lookup_token": order.lookup_token,
+                "cart_count": cart_count(get_cart(request)),
+                "shop_name": shop_name(),
+                "paid": True,
+                **totals,
+            },
+        )
+    try:
+        session = paid_session(session_id)
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    if not session:
+        raise HTTPException(status_code=400, detail="Payment not completed")
+
+    meta = session.get("metadata") or {}
+    snapshot = str(meta.get("cart") or "")
+    cart = cart_from_snapshot(snapshot) or get_cart(request)
+    lines = build_cart_lines(cart)
+    if not lines:
+        raise HTTPException(
+            status_code=400,
+            detail="Could not rebuild the cart after payment. Contact the studio with your Stripe receipt.",
+        )
+    totals = checkout_totals(lines)
+    paid_amount = int(session.get("amount_total") or 0)
+    expected = int(meta.get("total_cents") or totals["total_cents"])
+    if paid_amount != expected:
+        raise HTTPException(status_code=400, detail="Paid amount does not match the cart. Contact the studio.")
+
+    try:
+        order_id = place_order(
+            customer_name=str(meta.get("customer_name") or "").strip() or "Customer",
+            customer_email=str(meta.get("customer_email") or "").strip(),
+            shipping_address=str(meta.get("shipping_address") or "").strip(),
+            lines=lines,
+            paid=True,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    remember_stripe_session(session_id, order_id)
+    save_cart(request, {})
+    order = get_order(order_id)
+    if order:
+        schedule_order_email(order)
+    return templates.TemplateResponse(
+        request,
+        "order_complete.html",
+        {
+            "order_id": order_id,
+            "lookup_token": order.lookup_token if order else "",
+            "cart_count": 0,
+            "shop_name": shop_name(),
+            "paid": True,
             **totals,
         },
     )

@@ -26,8 +26,14 @@
         <textarea name="shipping_address" rows="3" required autocomplete="street-address"></textarea>
       </label>
     </fieldset>
-    <p class="checkout-note">Made-to-order demo checkout — no payment is collected. For custom names, photos, or files, DM @print.me.maybe or @lasercraft.27.</p>
-    <button type="submit" class="btn btn-primary btn-lg">Place order</button>
+    <p class="checkout-note">
+      {% if payments_on %}
+      You will pay by card on Stripe’s page (EEA cards typically 1.5% + €0.25, paid by the shop). Custom names, photos, or files: DM @print.me.maybe or @lasercraft.27.
+      {% else %}
+      Card payments are off until STRIPE_SECRET_KEY is set on the server. For custom names, photos, or files, DM @print.me.maybe or @lasercraft.27.
+      {% endif %}
+    </p>
+    <button type="submit" class="btn btn-primary btn-lg">{% if payments_on %}Pay with card{% else %}Place order{% endif %}</button>
   </form>
 
   <aside class="order-summary">

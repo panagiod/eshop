@@ -9,9 +9,14 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Generator
 
-# Default path works locally; Render sets DATA_DIR for a writable volume mount.
+# Default path works locally; production sets DATA_DIR to a real disk (Hetzner: /var/lib/eshop).
 def data_dir() -> Path:
     return Path(os.environ.get("DATA_DIR", "/tmp/eshop-data"))
+
+
+def data_persistent() -> bool:
+    """False when SQLite lives under /tmp (wiped on reboot / Render Free)."""
+    return not str(data_dir()).startswith("/tmp")
 
 
 def db_path() -> Path:
@@ -69,6 +74,7 @@ def init_schema() -> None:
                 status TEXT NOT NULL DEFAULT 'new',
                 notes TEXT NOT NULL DEFAULT '',
                 lookup_token TEXT UNIQUE,
+                payment_status TEXT NOT NULL DEFAULT 'unpaid',
                 created_at TEXT NOT NULL DEFAULT (datetime('now'))
             );
 
@@ -79,6 +85,12 @@ def init_schema() -> None:
                 quantity INTEGER NOT NULL,
                 unit_price_cents INTEGER NOT NULL
             );
+
+            CREATE TABLE IF NOT EXISTS stripe_sessions (
+                session_id TEXT PRIMARY KEY,
+                order_id INTEGER NOT NULL REFERENCES orders(id),
+                created_at TEXT NOT NULL DEFAULT (datetime('now'))
+            );
             """
         )
         columns = {row[1] for row in conn.execute("PRAGMA table_info(orders)").fetchall()}
@@ -88,6 +100,10 @@ def init_schema() -> None:
             conn.execute("ALTER TABLE orders ADD COLUMN notes TEXT NOT NULL DEFAULT ''")
         if "lookup_token" not in columns:
             conn.execute("ALTER TABLE orders ADD COLUMN lookup_token TEXT")
+        if "payment_status" not in columns:
+            conn.execute(
+                "ALTER TABLE orders ADD COLUMN payment_status TEXT NOT NULL DEFAULT 'unpaid'"
+            )
         missing = conn.execute(
             "SELECT id FROM orders WHERE lookup_token IS NULL OR lookup_token = ''"
         ).fetchall()
